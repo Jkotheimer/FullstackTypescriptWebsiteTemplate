@@ -1,0 +1,42 @@
+.container-404 {
+    margin: 1.25rem;
+    padding: 8rem 2rem;
+    border-radius: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    text-align: center;
+    .details {
+        max-width: 45%;
+        z-index: 1;
+    }
+    > svg {
+        position: absolute;
+        max-width: 80%;
+        height: auto;
+        opacity: 0.9;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+    }
+    // LG
+    // @media screen and (max-width: 61.9375em) {
+
+    // }
+    // MD
+    @media screen and (max-width: 47.9375em) {
+        padding: 3rem 2rem;
+    }
+    // SM
+    @media screen and (max-width: 595px) {
+        .details {
+            max-width: 100%;
+        }
+        > svg {
+            display: none;
+        }
+
+    }
+}

@@ -1,0 +1,75 @@
+// Modal
+.app-modal-wrapper {
+    backdrop-filter: blur(5px);
+    background: rgba(38, 44, 51, 0.9);
+
+    p {
+        font-size: 14px;
+    }
+    .modal-header {
+        border-bottom: none;
+
+        .form-control {
+            padding: 0px;
+            box-shadow: none;
+        }
+    }
+
+    .modal-search_icon {
+        width: 23px;
+    }
+
+    .modal-documentation_icon {
+        width: 18px;
+    }
+
+    .results {
+
+        a {
+            color: #262c33;
+            text-decoration: none;
+        }
+        
+        .row {
+            cursor: pointer;
+            border-radius: 10px;
+    
+            p {
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+        }
+
+        .row:hover {
+            color: #378EFC;
+            background: rgba(55, 142, 252, 0.20);
+        }
+
+        .badge {
+            background-color: rgba(38, 44, 51, 0.1);
+            color: rgba(38, 44, 51, 0.9);
+            max-width: 100%;
+            font-weight: 600;
+            word-wrap: break-word;
+            text-wrap: wrap;
+            text-align: left;
+            line-height: 125%;
+        }
+    }
+
+
+    input {
+        border: none;
+        font-size: 20px;
+    }
+
+    input[type="search"]::-webkit-search-decoration,
+    input[type="search"]::-webkit-search-cancel-button,
+    input[type="search"]::-webkit-search-results-button,
+    input[type="search"]::-webkit-search-results-decoration { 
+        display: none;
+    }
+    
+}

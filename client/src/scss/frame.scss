@@ -1,0 +1,238 @@
+// Hiding the footer for content pages
+main#frame + footer {
+    display: none !important;
+}
+
+#frame {
+    nav {
+        font-size: 0.85rem;
+    }
+    h6 + nav {
+        margin-left: -1rem;
+    }
+    nav {
+        a.nav-link {
+            color: #7c868d;
+            margin-top: 0.0625rem;
+            margin-bottom: 0.0625rem;
+        }
+        a:hover.nav-link {
+            color: #378efc;
+            border-radius: var(--bs-nav-pills-border-radius);
+            background: rgba(55, 142, 252, 0.08);
+            box-shadow: none;
+        }
+        a:visited {
+            color: #7c868d;
+        }
+        a.nav-link.active {
+            font-weight: 600;
+            background: rgba(55, 142, 252, 0.2);
+            color: #378efc;
+        }
+    }
+    .search-shortcut_button {
+        margin-top: -0.0625rem;
+    }
+    .content-container {
+        height: calc(100vh - 5.4375rem);
+        margin-right: 0;
+        .content_side-bar {
+            padding-right: 0;
+            width: 16.5625rem;
+        }
+        .content-container {
+            overflow-y: auto;
+            .content {
+                padding: 0 26% 0 4rem;
+            }
+            .content-footer {
+                margin-top: 4rem;
+                padding: 4rem 16rem 4rem 4rem;
+                h3 {
+                    font-size: 1.25rem;
+                    line-height: 1.375;
+                    margin: 0;
+                }
+            }
+        }
+    }
+    kbd {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        color: #7c868d;
+        background-color: #f2f6f8;
+        border-radius: 0.25rem;
+        border: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color);
+    }
+    .longform {
+        line-height: 2;
+        p {
+            color: #262c33;
+            margin-bottom: 1.25rem;
+        }
+        h2 {
+            display: inline-block;
+            font-size: 1.875rem;
+            line-height: 1.375;
+            margin: 6rem 0 1rem 0;
+            padding-right: 1.75rem;
+            cursor: pointer;
+        }
+        h3 {
+            font-size: 1.25rem;
+            line-height: 1.375;
+            margin: 3rem 0 1rem 0;
+        }
+        h4 {
+            margin: 3rem 0 1rem 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        img {
+            margin: 3rem 0;
+            width: 100% !important;
+            border-radius: 0.625rem;
+
+            &[role='button'] {
+                cursor: default;
+            }
+        }
+        .content-header {
+            span {
+                display: inline-block;
+            }
+            .copy-link {
+                display: none;
+                background: url(../images/copy-link-icon.svg) no-repeat;
+                background-size: cover;
+                width: 1.25rem;
+                height: 1.25rem;
+                transform: translate(0.5rem, 0.7rem);
+                border: none;
+                padding: 0;
+                top: 0;
+            }
+            h2:hover .copy-link {
+                display: block;
+            }
+        }
+
+        // p > img:first-child {
+        //     margin-top: 0;
+        // }
+        // img:last-child {
+        //     margin-bottom: 0;
+        // }
+
+        blockquote {
+            margin: 3rem 0;
+            border-radius: 0.625rem;
+            background: #f2f6f8;
+            padding: 1rem 1.5rem;
+            word-wrap: break-word;
+            p {
+                margin-bottom: 0;
+            }
+            .icon {
+                background: url(../images/info-icon.svg) no-repeat;
+                background-size: cover;
+                display: inline-block;
+                width: 1.15rem;
+                height: 1.15rem;
+                transform: translateY(0.0625rem);
+            }
+        }
+        ul,
+        ol {
+            word-wrap: break-word;
+            margin-bottom: 3rem;
+            li {
+                img {
+                    margin: 1.25rem 0 3rem 0;
+                }
+            }
+            ul,
+            ol {
+                margin: 0;
+            }
+        }
+        table {
+            margin-bottom: 1.25rem;
+            font-family: 'Helvetica Neue';
+            width: 100%;
+            word-break: break-word;
+            border-collapse: collapse;
+            &.fixed {
+                table-layout: fixed;
+            }
+            th {
+                border-bottom: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color);
+                text-transform: uppercase;
+                vertical-align: bottom;
+                font-size: 0.75rem;
+                letter-spacing: 0.1em;
+                line-height: 160%;
+                padding: 0.5rem 0.5rem 0.5rem 0;
+            }
+            tr {
+                border-bottom: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color);
+                td {
+                    padding: 0.5rem 0.5rem 0.5rem 0;
+                    line-height: 160%;
+                }
+            }
+            tr:last-child {
+                border-bottom: none;
+            }
+        }
+    }
+    // LG
+    @media screen and (max-width: 61.9375em) {
+        .content-container {
+            .content-container {
+                .content {
+                    padding: 0 15%;
+                }
+                .content-footer {
+                    padding: 3rem 15%;
+                }
+            }
+        }
+    }
+    // SM
+    @media screen and (max-width: 37.1875rem), screen and (max-height: 37.1875rem) {
+        .content-container {
+            .content-container {
+                .content {
+                    padding: 0 1.25rem 0 2rem;
+                }
+
+                .content-footer {
+                    margin-top: 3rem;
+                    padding: 3rem 1.25rem 3rem 2rem;
+                }
+            }
+        }
+        .longform h2,
+        #help-content .longform .h2 {
+            margin: 3rem 0 1rem 0;
+        }
+        .longform {
+            table {
+                display: block;
+                width: 100%;
+                overflow-x: scroll;
+                white-space: nowrap;
+                th {
+                    padding-right: 2rem;
+                }
+                tr {
+                    td {
+                        padding-right: 2rem;
+                    }
+                }
+            }
+        }
+    }
+}

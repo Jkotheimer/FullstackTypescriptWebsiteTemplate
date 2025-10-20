@@ -1,0 +1,29 @@
+# Mac OS
+.DS_Store
+_DelSyncFiles
+
+# Node JS
+node_modules
+package-lock.json
+
+# Local Development Environment Configuration
+.env.*json
+
+# Snyk cache
+.dccache
+node_modules/
+
+# Build Output Files
+dist/
+build/
+
+# Logs
+*logs/
+*.log
+
+# Environment Vars
+.env*
+
+# Keys
+config/.ssh
+config/.ssl
