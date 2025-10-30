@@ -24,6 +24,5 @@ build/
 # Environment Vars
 .env*
 
-# Keys
-config/.ssh
-config/.ssl
+# Config
+config/

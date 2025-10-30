@@ -1,0 +1,43 @@
+{
+    "@schema": "https://json.schemastore.org/tsconfig",
+    "_version": "0.1.0",
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist"],
+    "compilerOptions": {
+        "jsx": "react",
+        "target": "ES5",
+        "baseUrl": "src",
+        "rootDir": "src",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "typeRoots": ["node_modules/@types", "src/types"],
+        "lib": ["ES2020", "DOM"],
+        "paths": {
+            "@client/*": ["client/ts/*"],
+            "@styles/*": ["client/scss/*"],
+            "@images/*": ["client/images/*"],
+            "@api/*": ["server/api/*"],
+            "@database/*": ["server/database/*"],
+            "@utils/*": ["server/utils/*"],
+            "@models/*": ["models/*"],
+            "@constants/*": ["constants/*"]
+        },
+        "forceConsistentCasingInFileNames": true,
+        "allowSyntheticDefaultImports": true,
+        "skipDefaultLibCheck": false,
+        "noUnusedParameters": true,
+        "resolveJsonModule": true,
+        "strictNullChecks": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "declarationMap": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noImplicitAny": true,
+        "skipLibCheck": true,
+        "declaration": true,
+        "sourceMap": true,
+        "allowJs": false,
+        "strict": true
+    }
+}
