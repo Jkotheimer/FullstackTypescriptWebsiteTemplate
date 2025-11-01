@@ -18,7 +18,6 @@ import rename from 'gulp-rename';
 import clean from 'gulp-clean';
 import * as sass from 'sass';
 import crypto from 'crypto';
-import ts from 'typescript';
 import gulp from 'gulp';
 import path from 'path';
 import url from 'url';
