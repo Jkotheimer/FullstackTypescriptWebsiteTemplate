@@ -16,7 +16,8 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "configure": "node bin/configure-environment.js",
+        "configure": "node bin/configure-environment.ts",
+        "setup:database": "node --env-file=.env.development bin/setup-database.ts",
         "build": "gulp",
         "build:server": "gulp --stack server",
         "build:client": "gulp --stack client",

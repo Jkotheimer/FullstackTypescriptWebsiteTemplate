@@ -1,14 +1,12 @@
 #!/usr/bin/env node
-import parseArgs from './parse-args.ts';
+import CLIReader, { CLIValueConfig } from './cli-reader.ts';
 import exec from './async-exec.ts';
-import readline from 'readline';
 import dotenv from 'dotenv';
 import path from 'path';
 import url from 'url';
 import fs from 'fs';
 
 const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * ----------------------------------------------
@@ -19,7 +17,7 @@ const __dirname = path.dirname(__filename);
 export type Environment = 'development' | 'staging' | 'production';
 
 export interface ConfigurationArgs {
-    environment: Environment;
+    NODE_ENV: Environment;
 }
 
 export interface EnvironmentVariableConfig {
@@ -44,51 +42,66 @@ export interface ApplicationMySQLEnvironmentVariables {
 export interface ApplicationEnvrionmentVariables
     extends ApplicationJWTEnvironmentVariables,
         ApplicationMySQLEnvironmentVariables {
+    NODE_ENV: Environment;
     LOG_FILE_PATH: string;
 }
 
-// These type declarations are not included in the standard typescript lib
-interface ExtendedReadlineInterface extends readline.Interface {
-    _writeToOutput: (str: string) => void;
-    output: {
-        write: (str: string) => void;
-    };
-}
-
-const ENVIRONMENT_VARIABLE_CONFIGS: Readonly<Array<EnvironmentVariableConfig>> = Object.freeze([
-    {
-        name: 'SERVER_HOSTNAME',
+// These variables will be saved in the .env file once captured from the user
+const ENVIRONMENT_VARIABLE_CONFIGS: Readonly<Array<CLIValueConfig>> = Object.freeze([
+    new CLIValueConfig({
+        key: 'NODE_ENV',
+        label: 'Environment',
+        type: 'enum',
+        flags: new Set(['--environment', '--env', '-e']),
+        enumValues: new Set(['development', 'staging', 'production']),
+        defaultValue: 'development'
+    }),
+    new CLIValueConfig({
+        key: 'SERVER_HOSTNAME',
         label: 'Server Hostname',
-        default: 'localhost'
-    },
-    {
-        name: 'MYSQL_HOST',
+        type: 'string',
+        flags: new Set(['--hostname', '-h']),
+        defaultValue: 'localhost'
+    }),
+    new CLIValueConfig({
+        key: 'MYSQL_HOST',
         label: 'MySQL Host',
-        default: 'localhost'
-    },
-    {
-        name: 'MYSQL_DATABASE',
+        type: 'string',
+        flags: new Set(['--mysql-host']),
+        defaultValue: 'localhost'
+    }),
+    new CLIValueConfig({
+        key: 'MYSQL_DATABASE',
         label: 'MySQL Database',
-        default: 'typescript_starter_kit'
-    },
-    {
-        name: 'MYSQL_USER',
+        type: 'string',
+        flags: new Set(['--mysql-database']),
+        defaultValue: 'typescript_starter_kit'
+    }),
+    new CLIValueConfig({
+        key: 'MYSQL_USER',
         label: 'MySQL User',
-        default: 'mysql'
-    },
-    {
-        name: 'MYSQL_PASSWORD',
+        type: 'string',
+        flags: new Set(['--mysql-user']),
+        defaultValue: 'mysql'
+    }),
+    new CLIValueConfig({
+        key: 'MYSQL_PASSWORD',
         label: 'MySQL Password',
+        type: 'string',
+        flags: new Set(['--mysql-password']),
         masked: true
-    },
-    {
-        name: 'LOG_FILE_PATH',
+    }),
+    new CLIValueConfig({
+        key: 'LOG_FILE_PATH',
         label: 'Log File Path',
-        default: path.resolve('logs')
-    }
-] as Array<EnvironmentVariableConfig>);
+        type: 'string',
+        flags: new Set(['--log-file-path', '-l']),
+        defaultValue: path.resolve('logs')
+    })
+] as Array<CLIValueConfig>);
 
 const EMPTY_ENV_VARS: ApplicationEnvrionmentVariables = {
+    NODE_ENV: 'development',
     LOG_FILE_PATH: '',
     MYSQL_HOST: '',
     MYSQL_USER: '',
@@ -122,50 +135,6 @@ function trapInterrupt(draftDotenvFilePath: string): () => void {
 }
 
 /**
- * @description Prompt the user for environment variable value
- * @param {EnvironmentVariableConfig} config
- * @param {string} defaultValue
- */
-async function captureEnvironmentVariable(config: EnvironmentVariableConfig, defaultValue: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        defaultValue = defaultValue || config.default;
-        const defaultPrompt = defaultValue
-            ? ` (default=${config.masked ? defaultValue.replace(/./g, '*') : defaultValue})`
-            : '';
-        const rli = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        }) as ExtendedReadlineInterface;
-        const prompt = `${config.label}${defaultPrompt}: `;
-        rli.question(prompt, (result) => {
-            if (config.masked) {
-                rli.output.write('\n');
-            }
-            rli.close();
-            const response = result || defaultValue;
-            if (!response?.length) {
-                resolve(captureEnvironmentVariable(config, defaultValue));
-            } else {
-                resolve(response);
-            }
-        });
-        if (config.masked) {
-            rli._writeToOutput = (str: string) => {
-                if (str.startsWith(prompt)) {
-                    rli.output.write(prompt);
-                    str = str.replace(prompt, '');
-                }
-                for (let i = 0; i < str.length; i++) {
-                    if (str.charCodeAt(i) >= 32) {
-                        rli.output.write('*');
-                    }
-                }
-            };
-        }
-    });
-}
-
-/**
  * @returns {Promise<Record<string, string>>} Key file paths indexed by environment variable name
  */
 async function generateKeys(): Promise<ApplicationJWTEnvironmentVariables> {
@@ -188,79 +157,75 @@ async function generateKeys(): Promise<ApplicationJWTEnvironmentVariables> {
  * ----------------------------------------------
  */
 
+const isCLI = process.argv[1] === __filename;
+
 /**
  * @description Prompt user for environment variables
  * @param {ConfigurationArgs} args
  */
 async function main(args: ConfigurationArgs) {
-    const dotenvFileName = `.env.${args.environment}`;
+    const dotenvFileName = `.env.${args.NODE_ENV}`;
     const dotenvFilePath = path.resolve(dotenvFileName);
     const draftDotenvFileName = `${dotenvFileName}.draft`;
     const draftDotenvFilePath = path.resolve(draftDotenvFileName);
+    const clearInterrupt = trapInterrupt(draftDotenvFilePath);
 
     const oldDotenv: ApplicationEnvrionmentVariables = { ...EMPTY_ENV_VARS };
     const draftDotenv: ApplicationEnvrionmentVariables = { ...EMPTY_ENV_VARS };
-
-    // If an old draft file was found, use it for default value
-    if (fs.existsSync(draftDotenvFilePath)) {
-        console.log(`Draft dotenv detected [${draftDotenvFileName}]`);
-        Object.assign(draftDotenv, dotenv.parse(fs.readFileSync(draftDotenvFilePath)));
-    }
-
-    // If an existing dotenv is found, fallback on that for default values
-    if (fs.existsSync(dotenvFilePath)) {
-        console.log(`Active dotenv detected [${dotenvFileName}]`);
-        Object.assign(oldDotenv, dotenv.parse(fs.readFileSync(dotenvFilePath)));
-    }
-
-    const clearInterrupt = trapInterrupt(draftDotenvFilePath);
-
-    for (const config of ENVIRONMENT_VARIABLE_CONFIGS) {
-        const key = config.name as keyof ApplicationEnvrionmentVariables;
-        const defaultValue = draftDotenv[key] ?? oldDotenv[key] ?? config.default;
-        const value = await captureEnvironmentVariable(config, defaultValue);
-        if (draftDotenv[key]) {
-            fs.writeFileSync(
-                draftDotenvFilePath,
-                fs
-                    .readFileSync(draftDotenvFilePath, 'utf-8')
-                    .replace(`${config.name}='${draftDotenv[key]}'`, `${config.name}='${value}'`),
-                { encoding: 'utf-8' }
-            );
-        } else {
-            fs.appendFileSync(draftDotenvFilePath, `${config.name}='${value}'\n`, { encoding: 'utf-8' });
+    try {
+        // If an old draft file was found, use it for default value
+        if (fs.existsSync(draftDotenvFilePath)) {
+            console.log(`Draft dotenv detected [${draftDotenvFileName}]`);
+            Object.assign(draftDotenv, dotenv.parse(fs.readFileSync(draftDotenvFilePath)));
         }
-        draftDotenv[key] = value;
+
+        // If an existing dotenv is found, fallback on that for default values
+        if (fs.existsSync(dotenvFilePath)) {
+            console.log(`Active dotenv detected [${dotenvFileName}]`);
+            Object.assign(oldDotenv, dotenv.parse(fs.readFileSync(dotenvFilePath)));
+        }
+
+        for (const config of ENVIRONMENT_VARIABLE_CONFIGS) {
+            const key = config.key as keyof ApplicationEnvrionmentVariables;
+            config.defaultValue = draftDotenv[key] || oldDotenv[key] || config.defaultValue;
+            const value = await CLIReader.prompt(config);
+            if (draftDotenv[key] && fs.existsSync(draftDotenvFilePath)) {
+                fs.writeFileSync(
+                    draftDotenvFilePath,
+                    fs
+                        .readFileSync(draftDotenvFilePath, 'utf-8')
+                        .replace(`${key}='${draftDotenv[key]}'`, `${key}='${value}'`),
+                    { encoding: 'utf-8' }
+                );
+            } else {
+                fs.appendFileSync(draftDotenvFilePath, `${key}='${value}'\n`, { encoding: 'utf-8' });
+            }
+            config.apply(draftDotenv, value);
+        }
+
+        const keyFileEnvironmentVariables = await generateKeys();
+        Object.keys(keyFileEnvironmentVariables).forEach((envVar) => {
+            const keyFilePath = keyFileEnvironmentVariables[envVar as keyof ApplicationJWTEnvironmentVariables];
+            fs.appendFileSync(draftDotenvFilePath, `${envVar}='${keyFilePath}'\n`, { encoding: 'utf-8' });
+        });
+
+        fs.writeFileSync(dotenvFilePath, fs.readFileSync(draftDotenvFilePath));
+        fs.rmSync(draftDotenvFilePath);
+    } catch (error) {
+        if (isCLI) {
+            console.error(error);
+        } else {
+            throw error;
+        }
+    } finally {
+        clearInterrupt();
     }
-
-    const keyFileEnvironmentVariables = await generateKeys();
-    Object.keys(keyFileEnvironmentVariables).forEach((envVar) => {
-        const keyFilePath = keyFileEnvironmentVariables[envVar as keyof ApplicationJWTEnvironmentVariables];
-        fs.appendFileSync(draftDotenvFilePath, `${envVar}='${keyFilePath}'\n`, { encoding: 'utf-8' });
-    });
-
-    fs.writeFileSync(dotenvFilePath, fs.readFileSync(draftDotenvFilePath));
-    fs.rmSync(draftDotenvFilePath);
-    clearInterrupt();
 }
 
 // If this script was executed directly from the cli, run the main function with cli args.
 // Otherwise, this script must have been imported by another script
-if (process.argv[1] === __filename) {
-    const args: Record<string, any> = {};
-    parseArgs(
-        [
-            {
-                key: 'environment',
-                label: 'Environment',
-                type: 'enum',
-                flags: new Set(['--environment', '--env', '-e']),
-                enumValues: new Set(['development', 'staging', 'production']),
-                defaultValue: 'development'
-            }
-        ],
-        args
-    );
+if (isCLI) {
+    const args = CLIReader.parseArgv(ENVIRONMENT_VARIABLE_CONFIGS);
     main(args as ConfigurationArgs);
 }
 
