@@ -79,12 +79,17 @@ export class CLIValueConfig implements ICLIValueConfig {
             case 'boolean':
                 if (typeof result.value !== 'string') {
                     result.value = !!value;
-                } else if (result.value.toLowerCase() === 'true') {
-                    result.value = true;
-                } else if (result.value.toLowerCase() === 'false') {
-                    result.value = false;
                 } else {
-                    result.value = `Invalid boolean provided for ${label}: ${value}`;
+                    const lcv = result.value.toLowerCase();
+                    const truthyValues = new Set<string>(['true', 'y', 'yes']);
+                    const falsyValues = new Set<string>(['false', 'n', 'no']);
+                    if (truthyValues.has(lcv)) {
+                        result.value = true;
+                    } else if (falsyValues.has(lcv)) {
+                        result.value = false;
+                    } else {
+                        result.value = `Invalid boolean provided for ${label}: ${value}`;
+                    }
                 }
                 break;
             case 'enum':
@@ -135,11 +140,22 @@ export default class CLIReader {
                 }
                 defaultPrompt = ` (default=${defaultValue})`;
             }
+            let acceptedValuesPrompt = '';
+            if (config.type === 'enum' && !!config.enumValues) {
+                acceptedValuesPrompt = ` [${Array.from(config.enumValues).join(', ')}]`;
+            } else if (config.type === 'boolean') {
+                if (config.defaultValue) {
+                    acceptedValuesPrompt = ' [Y/n]';
+                } else {
+                    acceptedValuesPrompt = ' [y/N]';
+                }
+                defaultPrompt = '';
+            }
             const rli = readline.createInterface({
                 input: process.stdin,
                 output: process.stdout
             }) as ExtendedReadlineInterface;
-            const prompt = `${config.label}${defaultPrompt}: `;
+            const prompt = `${config.label}${acceptedValuesPrompt}${defaultPrompt}: `;
             rli.question(prompt, (result) => {
                 if (config.masked) {
                     rli.output.write('\n');

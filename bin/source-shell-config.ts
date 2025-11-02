@@ -2,7 +2,7 @@ import fs from 'fs';
 
 const QUOTE_DELIMS = ['"', "'"];
 
-export default function readDotEnv(filePath: string): Record<string, string> {
+export default function sourceShellConfig(filePath: string): Record<string, string> {
     if (!fs.existsSync(filePath)) {
         return {};
     }
