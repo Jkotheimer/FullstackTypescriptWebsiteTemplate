@@ -164,6 +164,9 @@ const isCLI = process.argv[1] === __filename;
  * @param {ConfigurationArgs} args
  */
 async function main(args: ConfigurationArgs) {
+    if (!args.NODE_ENV) {
+        args.NODE_ENV = (await CLIReader.prompt(ENVIRONMENT_VARIABLE_CONFIGS[0])) as Environment;
+    }
     const dotenvFileName = `.env.${args.NODE_ENV}`;
     const dotenvFilePath = path.resolve(dotenvFileName);
     const draftDotenvFileName = `${dotenvFileName}.draft`;
@@ -185,7 +188,8 @@ async function main(args: ConfigurationArgs) {
             Object.assign(oldDotenv, dotenv.parse(fs.readFileSync(dotenvFilePath)));
         }
 
-        for (const config of ENVIRONMENT_VARIABLE_CONFIGS) {
+        // Skip the NODE_ENV config because we already confirmed that earlier
+        for (const config of ENVIRONMENT_VARIABLE_CONFIGS.slice(1, ENVIRONMENT_VARIABLE_CONFIGS.length)) {
             const key = config.key as keyof ApplicationEnvrionmentVariables;
             config.defaultValue = draftDotenv[key] || oldDotenv[key] || config.defaultValue;
             const value = await CLIReader.prompt(config);
@@ -225,8 +229,8 @@ async function main(args: ConfigurationArgs) {
 // If this script was executed directly from the cli, run the main function with cli args.
 // Otherwise, this script must have been imported by another script
 if (isCLI) {
-    const args = CLIReader.parseArgv(ENVIRONMENT_VARIABLE_CONFIGS);
-    main(args as ConfigurationArgs);
+    const args = CLIReader.parseArgv(ENVIRONMENT_VARIABLE_CONFIGS) as ConfigurationArgs;
+    main(args);
 }
 
 export default main;

@@ -1,3 +1,4 @@
+import { error } from 'console';
 import readline from 'readline';
 
 // These type declarations are not included in the standard typescript lib,
@@ -13,8 +14,8 @@ export type CLIValueType = string & ('enum' | 'string' | 'number' | 'boolean');
 
 export type CLIValue = string | number | boolean;
 
-export interface CLIValueHandleResult {
-    value: CLIValue;
+export interface CLIValueParseResult {
+    value?: CLIValue;
     error?: string;
 }
 
@@ -60,8 +61,8 @@ export class CLIValueConfig implements ICLIValueConfig {
         return '';
     }
 
-    handleValue(value: CLIValue | undefined, label: string = this.label): CLIValueHandleResult {
-        const result: CLIValueHandleResult = {
+    parseValue(value: CLIValue | undefined, label: string = this.label): CLIValueParseResult {
+        const result: CLIValueParseResult = {
             value: value ?? this.defaultValue ?? this.fallbackDefaultValue
         };
         if (this.required && value == null && this.defaultValue == null) {
@@ -76,7 +77,7 @@ export class CLIValueConfig implements ICLIValueConfig {
                 }
                 break;
             case 'boolean':
-                if (typeof result.value === 'number' || typeof result.value === 'boolean') {
+                if (typeof result.value !== 'string') {
                     result.value = !!value;
                 } else if (result.value.toLowerCase() === 'true') {
                     result.value = true;
@@ -93,7 +94,7 @@ export class CLIValueConfig implements ICLIValueConfig {
                 }
             // purposefully falling thru here
             case 'string':
-                result.value = result.value.toString();
+                result.value = result.value?.toString() ?? '';
                 break;
             default:
                 result.error = `Invalid argument this type: ${this.type}`;
@@ -102,13 +103,19 @@ export class CLIValueConfig implements ICLIValueConfig {
     }
 
     apply(obj: Record<string, any>, value: CLIValue) {
-        const handleResult = this.handleValue(value);
-        if (handleResult.error) {
-            throw new Error(handleResult.error);
+        const parseResult = this.parseValue(value);
+        if (parseResult.error) {
+            throw parseResult.error;
         }
         obj[this.key] = value;
     }
 }
+
+export type CLIValueConfigInput =
+    | CLIValueConfig
+    | ICLIValueConfig
+    | Readonly<CLIValueConfig>
+    | Readonly<ICLIValueConfig>;
 
 /**
  * @description Provides utility methods for capturing data from the CLI
@@ -117,8 +124,9 @@ export default class CLIReader {
     /**
      * @description Prompt the user for input variable value
      */
-    static async prompt(config: CLIValueConfig | Readonly<CLIValueConfig>): Promise<CLIValue> {
+    static prompt(configInput: CLIValueConfigInput): Promise<CLIValue> {
         return new Promise((resolve, reject) => {
+            const config = configInput instanceof CLIValueConfig ? configInput : new CLIValueConfig(configInput);
             let defaultPrompt = '';
             if (config.defaultValue != null) {
                 let defaultValue = config.defaultValue;
@@ -138,9 +146,11 @@ export default class CLIReader {
                 }
                 rli.close();
                 const value = result || config.defaultValue;
-                const validityResult = config.handleValue(value);
-                if (validityResult.error) {
-                    console.error(validityResult.error);
+                const validityResult = config.parseValue(value);
+                if (validityResult.error || validityResult.value === undefined) {
+                    if (validityResult.error) {
+                        console.error(validityResult.error);
+                    }
                     resolve(CLIReader.prompt(config));
                 } else {
                     resolve(validityResult.value);
@@ -162,13 +172,14 @@ export default class CLIReader {
         });
     }
 
-    static parseArgv(configs: Array<CLIValueConfig> | Readonly<Array<CLIValueConfig>>): object {
+    static parseArgv(configs: Array<CLIValueConfigInput> | Readonly<Array<CLIValueConfigInput>>): object {
         if (!Array.isArray(configs)) {
             throw new Error('Configs input must be an array.');
         }
         const duplicateFlags: Record<string, Array<CLIValueConfig>> = {};
         const configByArgFlags: Record<string, CLIValueConfig> = configs.reduce(
-            (configByArgFlags, config) => {
+            (configByArgFlags, configInput) => {
+                const config = configInput instanceof CLIValueConfig ? configInput : new CLIValueConfig(configInput);
                 if (!config.flags?.size) {
                     throw new Error(`Argument config has no flags: ${config.label || config.key}`);
                 }
@@ -196,7 +207,6 @@ export default class CLIReader {
         }
 
         const errors: Array<string> = [];
-
         const args: Record<string, CLIValue> = {};
         for (let i = 2; i < process.argv.length; i++) {
             const splitArg: Array<string> = process.argv[i].split('=');
@@ -230,55 +240,13 @@ export default class CLIReader {
                     value = process.argv[++i] as CLIValue;
                 }
             }
-            switch (config.type) {
-                case 'string':
-                    args[key] = value;
-                    break;
-                case 'number':
-                    args[key] = parseFloat(value as string);
-                    if (Number.isNaN(args[key])) {
-                        errors.push(`Invalid number provided for ${label}: ${args[key]}`);
-                    }
-                    break;
-                case 'boolean':
-                    if (typeof value === 'boolean') {
-                        args[key] = value;
-                    } else if (typeof value === 'number') {
-                        args[key] = !!value;
-                    } else if (value.toLowerCase() === 'true') {
-                        args[key] = true;
-                    } else if (value.toLowerCase() === 'false') {
-                        args[key] = false;
-                    } else {
-                        errors.push(`Invalid boolean provided for ${label}: ${value}`);
-                    }
-                    break;
-                case 'enum':
-                    if (typeof value !== 'string' || !config.enumValues?.has(value)) {
-                        const allowedValues = Array.from(config.enumValues || []).join(',');
-                        errors.push(
-                            `Invalid value provided for ${label}: "${args[key]}". Allowed values: [${allowedValues}]`
-                        );
-                    } else {
-                        args[key] = value;
-                    }
-                    break;
-                default:
-                    errors.push(`Invalid argument config type: ${config.type}`);
+            const parseResult = config.parseValue(value);
+            if (parseResult.error) {
+                errors.push(parseResult.error);
+            } else if (parseResult.value) {
+                args[key] = parseResult.value;
             }
         }
-        configs.forEach((config) => {
-            if (args[config.key] == null) {
-                if (config.defaultValue != null) {
-                    args[config.key] = config.defaultValue;
-                } else if (config.required) {
-                    const flagsMessage = config.flags ? ` [${Array.from(config.flags).join(',')}]` : '';
-                    errors.push(`Missing required argument: ${config.label}.${flagsMessage}`);
-                } else if (config.type === 'boolean') {
-                    args[config.key] = false;
-                }
-            }
-        });
         if (errors.length) {
             throw new Error(errors.join('\n'));
         }
