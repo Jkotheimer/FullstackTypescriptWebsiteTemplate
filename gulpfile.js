@@ -1,8 +1,7 @@
 /**
  * @description Gulpfile for compiling SCSS to minified CSS, compiling TS to minified JS, and copying images and dependencies to the build/ directory
  */
-import readDotEnv from './bin/read-dot-env.js';
-import parseArgs from './bin/parse-args.js';
+import parseArgs from './bin/parse-args.ts';
 
 import beautifyCode from 'gulp-beautify-code';
 import autoprefixer from 'gulp-autoprefixer';
@@ -90,7 +89,6 @@ process.env = {
 const DOT_ENV_NAME = `.env.${ARGS.NODE_ENV}`;
 const DOT_ENV = path.resolve(__dirname, DOT_ENV_NAME);
 console.log(DOT_ENV);
-const DOT_ENV_CONFIG = readDotEnv(DOT_ENV);
 
 // Define source directories
 const SRC_DIR = path.resolve(__dirname, 'src');
