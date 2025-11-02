@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import parseArgs from './parse-args.js';
+import parseArgs from './parse-args.ts';
+import exec from './async-exec.ts';
 import readline from 'readline';
-import cp from 'child_process';
 import dotenv from 'dotenv';
 import path from 'path';
 import url from 'url';
@@ -16,44 +16,46 @@ const __dirname = path.dirname(__filename);
  * ----------------------------------------------
  */
 
-/**
- * @readonly
- * @enum {string}
- */
-const Environment = Object.freeze({
-    development: 'development',
-    staging: 'staging',
-    production: 'production'
-});
+export type Environment = 'development' | 'staging' | 'production';
 
-/**
- * @typedef {Object} ConfigurationArgs
- * @property {Environment} environment
- */
+export interface ConfigurationArgs {
+    environment: Environment;
+}
 
-/**
- * @typedef {Object} EnvironmentVariableConfig
- * @property {string} name
- * @property {string} label
- * @property {string} default
- * @property {boolean} masked
- */
+export interface EnvironmentVariableConfig {
+    name: string;
+    label: string;
+    default: string;
+    masked?: boolean;
+}
 
-/**
- * @typedef {Object} EnvironmentVariables
- * @property {string} MYSQL_HOST
- * @property {string} MYSQL_DATABASE
- * @property {string} MYSQL_USER
- * @property {string} MYSQL_PASSWORD
- * @property {string} LOG_FILE_PATH
- * @property {string} RECAPTCHA_SITE_KEY
- * @property {string} RECAPTCHA_SECRET_KEY
- */
+export interface ApplicationJWTEnvironmentVariables {
+    JWT_PRIVATE_KEY_FILE: string;
+    JWT_PUBLIC_KEY_FILE: string;
+}
 
-/**
- * @type {Array<EnvironmentVariableConfig>}
- */
-const ENVIRONMENT_VARIABLE_CONFIGS = Object.freeze([
+export interface ApplicationMySQLEnvironmentVariables {
+    MYSQL_DATABASE: string;
+    MYSQL_PASSWORD: string;
+    MYSQL_HOST: string;
+    MYSQL_USER: string;
+}
+
+export interface ApplicationEnvrionmentVariables
+    extends ApplicationJWTEnvironmentVariables,
+        ApplicationMySQLEnvironmentVariables {
+    LOG_FILE_PATH: string;
+}
+
+// These type declarations are not included in the standard typescript lib
+interface ExtendedReadlineInterface extends readline.Interface {
+    _writeToOutput: (str: string) => void;
+    output: {
+        write: (str: string) => void;
+    };
+}
+
+const ENVIRONMENT_VARIABLE_CONFIGS: Readonly<Array<EnvironmentVariableConfig>> = Object.freeze([
     {
         name: 'SERVER_HOSTNAME',
         label: 'Server Hostname',
@@ -84,7 +86,17 @@ const ENVIRONMENT_VARIABLE_CONFIGS = Object.freeze([
         label: 'Log File Path',
         default: path.resolve('logs')
     }
-]);
+] as Array<EnvironmentVariableConfig>);
+
+const EMPTY_ENV_VARS: ApplicationEnvrionmentVariables = {
+    LOG_FILE_PATH: '',
+    MYSQL_HOST: '',
+    MYSQL_USER: '',
+    MYSQL_PASSWORD: '',
+    MYSQL_DATABASE: '',
+    JWT_PRIVATE_KEY_FILE: '',
+    JWT_PUBLIC_KEY_FILE: ''
+};
 
 /**
  * ----------------------------------------------
@@ -95,10 +107,10 @@ const ENVIRONMENT_VARIABLE_CONFIGS = Object.freeze([
 /**
  * @description When the program is interrupted, print custom information about the state that is being left behind
  * @param {string} draftDotenvFilePath File path to .env.draft
- * @returns {function} Reference to exit handler to be used to remove the event handler from the process
+ * @returns {function} Function to clear the interrupt handler
  */
-function trapInterrupt(draftDotenvFilePath) {
-    function onExit(code) {
+function trapInterrupt(draftDotenvFilePath: string): () => void {
+    function onExit(code: number) {
         console.log(`\nConfiguration interrupted. Exiting gracefully with status code ${code}...`);
         if (fs.existsSync(draftDotenvFilePath)) {
             console.log(`\nDraft saved to ${draftDotenvFilePath}\n`);
@@ -106,7 +118,7 @@ function trapInterrupt(draftDotenvFilePath) {
         process.exit(code);
     }
     process.on('exit', onExit);
-    return onExit;
+    return () => process.removeListener('exit', onExit);
 }
 
 /**
@@ -114,7 +126,7 @@ function trapInterrupt(draftDotenvFilePath) {
  * @param {EnvironmentVariableConfig} config
  * @param {string} defaultValue
  */
-async function captureEnvironmentVariable(config, defaultValue) {
+async function captureEnvironmentVariable(config: EnvironmentVariableConfig, defaultValue: string): Promise<string> {
     return new Promise((resolve, reject) => {
         defaultValue = defaultValue || config.default;
         const defaultPrompt = defaultValue
@@ -123,7 +135,7 @@ async function captureEnvironmentVariable(config, defaultValue) {
         const rli = readline.createInterface({
             input: process.stdin,
             output: process.stdout
-        });
+        }) as ExtendedReadlineInterface;
         const prompt = `${config.label}${defaultPrompt}: `;
         rli.question(prompt, (result) => {
             if (config.masked) {
@@ -138,7 +150,7 @@ async function captureEnvironmentVariable(config, defaultValue) {
             }
         });
         if (config.masked) {
-            rli._writeToOutput = (str) => {
+            rli._writeToOutput = (str: string) => {
                 if (str.startsWith(prompt)) {
                     rli.output.write(prompt);
                     str = str.replace(prompt, '');
@@ -153,22 +165,10 @@ async function captureEnvironmentVariable(config, defaultValue) {
     });
 }
 
-async function exec(cmd) {
-    return new Promise((resolve, reject) => {
-        cp.exec(cmd, (error, stdout, stderr) => {
-            if (error) {
-                reject({ error, stdout, stderr });
-            } else {
-                resolve({ stdout, stderr });
-            }
-        });
-    });
-}
-
 /**
  * @returns {Promise<Record<string, string>>} Key file paths indexed by environment variable name
  */
-async function generateKeys() {
+async function generateKeys(): Promise<ApplicationJWTEnvironmentVariables> {
     const JWT_PRIVATE_KEY_FILE = path.resolve('config/.ssl/jwt-rsa.pem');
     const JWT_PUBLIC_KEY_FILE = path.resolve('config/.ssl/jwt-rsa-public.pem');
     if (!fs.existsSync(JWT_PRIVATE_KEY_FILE)) {
@@ -192,17 +192,14 @@ async function generateKeys() {
  * @description Prompt user for environment variables
  * @param {ConfigurationArgs} args
  */
-async function main(args) {
+async function main(args: ConfigurationArgs) {
     const dotenvFileName = `.env.${args.environment}`;
     const dotenvFilePath = path.resolve(dotenvFileName);
     const draftDotenvFileName = `${dotenvFileName}.draft`;
     const draftDotenvFilePath = path.resolve(draftDotenvFileName);
 
-    /** @type {EnvironmentVariables} */
-    const oldDotenv = {};
-
-    /** @type {EnvironmentVariables} */
-    const draftDotenv = {};
+    const oldDotenv: ApplicationEnvrionmentVariables = { ...EMPTY_ENV_VARS };
+    const draftDotenv: ApplicationEnvrionmentVariables = { ...EMPTY_ENV_VARS };
 
     // If an old draft file was found, use it for default value
     if (fs.existsSync(draftDotenvFilePath)) {
@@ -216,53 +213,55 @@ async function main(args) {
         Object.assign(oldDotenv, dotenv.parse(fs.readFileSync(dotenvFilePath)));
     }
 
-    const onExit = trapInterrupt(draftDotenvFilePath);
+    const clearInterrupt = trapInterrupt(draftDotenvFilePath);
 
     for (const config of ENVIRONMENT_VARIABLE_CONFIGS) {
-        const defaultValue = draftDotenv[config.name] ?? oldDotenv[config.name] ?? config.default;
+        const key = config.name as keyof ApplicationEnvrionmentVariables;
+        const defaultValue = draftDotenv[key] ?? oldDotenv[key] ?? config.default;
         const value = await captureEnvironmentVariable(config, defaultValue);
-        if (draftDotenv[config.name]) {
+        if (draftDotenv[key]) {
             fs.writeFileSync(
                 draftDotenvFilePath,
                 fs
                     .readFileSync(draftDotenvFilePath, 'utf-8')
-                    .replace(`${config.name}='${draftDotenv[config.name]}'`, `${config.name}='${value}'`),
+                    .replace(`${config.name}='${draftDotenv[key]}'`, `${config.name}='${value}'`),
                 { encoding: 'utf-8' }
             );
         } else {
             fs.appendFileSync(draftDotenvFilePath, `${config.name}='${value}'\n`, { encoding: 'utf-8' });
         }
-        draftDotenv[config.name] = value;
+        draftDotenv[key] = value;
     }
 
     const keyFileEnvironmentVariables = await generateKeys();
     Object.keys(keyFileEnvironmentVariables).forEach((envVar) => {
-        const keyFilePath = keyFileEnvironmentVariables[envVar];
+        const keyFilePath = keyFileEnvironmentVariables[envVar as keyof ApplicationJWTEnvironmentVariables];
         fs.appendFileSync(draftDotenvFilePath, `${envVar}='${keyFilePath}'\n`, { encoding: 'utf-8' });
     });
 
     fs.writeFileSync(dotenvFilePath, fs.readFileSync(draftDotenvFilePath));
     fs.rmSync(draftDotenvFilePath);
-    process.removeListener('exit', onExit);
+    clearInterrupt();
 }
 
 // If this script was executed directly from the cli, run the main function with cli args.
 // Otherwise, this script must have been imported by another script
 if (process.argv[1] === __filename) {
-    const argsParseResponse = parseArgs([
-        {
-            key: 'environment',
-            label: 'Environment',
-            type: 'enum',
-            flags: new Set(['--environment', '--env', '-e']),
-            enumValues: new Set(['development', 'staging', 'production']),
-            defaultValue: 'development'
-        }
-    ]);
-    if (argsParseResponse.errors.length) {
-        throw new Error(argsParseResponse.errors.join('\n'));
-    }
-    main(argsParseResponse.args);
+    const args: Record<string, any> = {};
+    parseArgs(
+        [
+            {
+                key: 'environment',
+                label: 'Environment',
+                type: 'enum',
+                flags: new Set(['--environment', '--env', '-e']),
+                enumValues: new Set(['development', 'staging', 'production']),
+                defaultValue: 'development'
+            }
+        ],
+        args
+    );
+    main(args as ConfigurationArgs);
 }
 
 export default main;
