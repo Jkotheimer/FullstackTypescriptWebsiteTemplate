@@ -1,7 +1,8 @@
 /**
  * @description Gulpfile for compiling SCSS to minified CSS, compiling TS to minified JS, and copying images and dependencies to the build/ directory
  */
-import parseArgs from './bin/parse-args.ts';
+import CLIReader, { CLIValueConfig } from './bin/utils/cli-reader.ts';
+import ensureNodeEnv from './bin/utils/node-env.ts';
 
 import beautifyCode from 'gulp-beautify-code';
 import autoprefixer from 'gulp-autoprefixer';
@@ -26,39 +27,8 @@ import fs from 'fs';
 const __filename = url.fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Get input args
-const argsParseResponse = parseArgs([
-    {
-        key: 'STACK',
-        label: 'Stack',
-        type: 'enum',
-        flags: new Set(['--stack', '-s']),
-        enumValues: new Set(['client', 'server', 'all']),
-        defaultValue: 'all'
-    },
-    {
-        key: 'NODE_ENV',
-        label: 'Environment',
-        type: 'enum',
-        flags: new Set(['--environment', '--env', '-e']),
-        enumValues: new Set(['development', 'staging', 'production']),
-        defaultValue: 'development'
-    },
-    {
-        key: 'WATCH',
-        label: 'Watch',
-        type: 'boolean',
-        flags: new Set(['--watch', '-w'])
-    }
-]);
-
-if (argsParseResponse.errors.length) {
-    throw new Error(argsParseResponse.errors.join('\n'));
-}
-
 /**
  * @typedef {Object} GulpArgs
- * @property {('development'|'staging'|'production')} NODE_ENV
  * @property {('client'|'server'|'all')} STACK
  * @property {boolean} WATCH
  */
@@ -66,27 +36,39 @@ if (argsParseResponse.errors.length) {
 /**
  * @type {GulpArgs}
  */
-const ARGS = argsParseResponse.args;
+const ARGS = CLIReader.parseArgv([
+    new CLIValueConfig({
+        key: 'STACK',
+        label: 'Stack',
+        type: 'enum',
+        flags: new Set(['--stack', '-s']),
+        enumValues: new Set(['client', 'server', 'all']),
+        defaultValue: 'all'
+    }),
+    new CLIValueConfig({
+        key: 'WATCH',
+        label: 'Watch',
+        type: 'boolean',
+        flags: new Set(['--watch', '-w'])
+    })
+]);
 console.log('ARGS:', ARGS);
 
+ensureNodeEnv('development').then(() => {
+    console.log('Env configured:', process.env.NODE_ENV);
+});
 // Set environment variables
 console.log('Current before:', environments.current());
-if (!environments[ARGS.NODE_ENV]) {
-    console.warn('WARNING: Environment does not exist:', ARGS.NODE_ENV);
-    console.warn('Creating environment:', ARGS.NODE_ENV);
-    environments.make(ARGS.NODE_ENV);
+if (!environments[process.env.NODE_ENV]) {
+    console.warn('WARNING: Environment does not exist:', process.env.NODE_ENV);
+    console.warn('Creating environment:', process.env.NODE_ENV);
+    environments.make(process.env.NODE_ENV);
 }
-environments.current(environments[ARGS.NODE_ENV]);
+environments.current(environments[process.env.NODE_ENV]);
 console.log('Current after:', environments.current());
 
-process.env = {
-    ...process.env,
-    APP_NAME: process.env.APP_NAME ?? 'website',
-    IS_WORKFLOW: !!process.env.IS_WORKFLOW
-};
-
 // Environment vars
-const DOT_ENV_NAME = `.env.${ARGS.NODE_ENV}`;
+const DOT_ENV_NAME = `.env.${process.env.NODE_ENV}`;
 const DOT_ENV = path.resolve(__dirname, DOT_ENV_NAME);
 console.log(DOT_ENV);
 
@@ -96,7 +78,6 @@ const SRC_DIR_CLIENT = path.resolve(SRC_DIR, 'client');
 const SRC_DIR_SERVER = path.resolve(SRC_DIR, 'server');
 
 // Define output directories
-//const REMOTE_OUT_DIR = path.join('/srv/http/', process.env.APP_NAME);
 const OUT_DIR = path.resolve(__dirname, 'dist');
 const OUT_DIR_CLIENT = path.resolve(OUT_DIR, 'public');
 const OUT_DIR_SERVER = OUT_DIR;
