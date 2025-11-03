@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import CLIReader, { CLIValueConfig } from './cli-reader.ts';
+import ensureNodeEnv from './node-env.ts';
 import exec from './async-exec.ts';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -13,12 +14,6 @@ const __filename = url.fileURLToPath(import.meta.url);
  * ------ TYPE DEFS, ENUMS, & CONSTANTS ---------
  * ----------------------------------------------
  */
-
-export type Environment = 'development' | 'staging' | 'production';
-
-export interface ConfigurationArgs {
-    NODE_ENV: Environment;
-}
 
 export interface EnvironmentVariableConfig {
     name: string;
@@ -42,20 +37,11 @@ export interface ApplicationMySQLEnvironmentVariables {
 export interface ApplicationEnvrionmentVariables
     extends ApplicationJWTEnvironmentVariables,
         ApplicationMySQLEnvironmentVariables {
-    NODE_ENV: Environment;
     LOG_FILE_PATH: string;
 }
 
 // These variables will be saved in the .env file once captured from the user
 const ENVIRONMENT_VARIABLE_CONFIGS: Readonly<Array<CLIValueConfig>> = Object.freeze([
-    new CLIValueConfig({
-        key: 'NODE_ENV',
-        label: 'Environment',
-        type: 'enum',
-        flags: new Set(['--environment', '--env', '-e']),
-        enumValues: new Set(['development', 'staging', 'production']),
-        defaultValue: 'development'
-    }),
     new CLIValueConfig({
         key: 'SERVER_HOSTNAME',
         label: 'Server Hostname',
@@ -101,7 +87,6 @@ const ENVIRONMENT_VARIABLE_CONFIGS: Readonly<Array<CLIValueConfig>> = Object.fre
 ] as Array<CLIValueConfig>);
 
 const EMPTY_ENV_VARS: ApplicationEnvrionmentVariables = {
-    NODE_ENV: 'development',
     LOG_FILE_PATH: '',
     MYSQL_HOST: '',
     MYSQL_USER: '',
@@ -161,13 +146,10 @@ const isCLI = process.argv[1] === __filename;
 
 /**
  * @description Prompt user for environment variables
- * @param {ConfigurationArgs} args
  */
-async function main(args: ConfigurationArgs) {
-    if (!args.NODE_ENV) {
-        args.NODE_ENV = (await CLIReader.prompt(ENVIRONMENT_VARIABLE_CONFIGS[0])) as Environment;
-    }
-    const dotenvFileName = `.env.${args.NODE_ENV}`;
+async function main() {
+    await ensureNodeEnv();
+    const dotenvFileName = `.env.${process.env.NODE_ENV}`;
     const dotenvFilePath = path.resolve(dotenvFileName);
     const draftDotenvFileName = `${dotenvFileName}.draft`;
     const draftDotenvFilePath = path.resolve(draftDotenvFileName);
@@ -229,8 +211,7 @@ async function main(args: ConfigurationArgs) {
 // If this script was executed directly from the cli, run the main function with cli args.
 // Otherwise, this script must have been imported by another script
 if (isCLI) {
-    const args = CLIReader.parseArgv(ENVIRONMENT_VARIABLE_CONFIGS) as ConfigurationArgs;
-    main(args);
+    main();
 }
 
 export default main;
