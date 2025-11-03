@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import CLIReader, { CLIValueConfig } from './cli-reader.ts';
-import ensureNodeEnv from './node-env.ts';
-import exec from './async-exec.ts';
+import CLIReader, { CLIValueConfig } from './utils/cli-reader.ts';
+import ensureNodeEnv from './utils/node-env.ts';
+import exec from './utils/async-exec.ts';
 import dotenv from 'dotenv';
 import path from 'path';
 import url from 'url';

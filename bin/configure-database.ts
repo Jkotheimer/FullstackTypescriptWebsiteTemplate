@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { AsyncExecResponse } from './async-exec.ts';
-import MariaDBAdmin from './mariadb-admin.ts';
-import ensureNodeEnv from './node-env.ts';
+import { AsyncExecResponse } from './utils/async-exec.ts';
+import MariaDBAdmin from './utils/mariadb-admin.ts';
+import ensureNodeEnv from './utils/node-env.ts';
 import path from 'path';
 import url from 'url';
 

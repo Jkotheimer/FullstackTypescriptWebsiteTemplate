@@ -24,6 +24,16 @@ export default class MariaDBAdmin {
         return mysql.createConnection(MariaDBAdmin.getMySqlConfig());
     }
 
+    public static async isMariaDBRunning(): Promise<boolean> {
+        try {
+            const pgrepResult = await asyncExec('pgrep mariadb');
+            const pid = parseInt(pgrepResult.stdoutLines[0]);
+            return !Number.isNaN(pid);
+        } catch (error) {
+            return false;
+        }
+    }
+
     public static mysqlEnvironmentVarsAreSet(): boolean {
         const mysqlConfig = MariaDBAdmin.getMySqlConfig();
         return !!mysqlConfig.host && !!mysqlConfig.database && !!mysqlConfig.user && !!mysqlConfig.password;
