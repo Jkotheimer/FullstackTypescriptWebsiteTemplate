@@ -29,6 +29,14 @@ export default class Database {
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASSWORD
         });
+        Database.connection.on('error', console.error);
+    }
+
+    public static checkConnection(): boolean {
+        if (!Database.connection.authorized) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -38,6 +46,9 @@ export default class Database {
      */
     public static async wrap(fn: Function | Promise<any>): Promise<any> {
         return new Promise<any>((resolve, reject) => {
+            if (!Database.checkConnection()) {
+                reject('Database connection is severed. Please check server config');
+            }
             Database.connection.beginTransaction(async (transactionInitError: mysql.QueryError | null) => {
                 if (transactionInitError) {
                     const error = new TransactionError();
