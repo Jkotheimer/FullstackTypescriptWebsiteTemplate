@@ -15,14 +15,17 @@ const nodeEnvConfig: CLIValueConfig = new CLIValueConfig({
     defaultValue: 'development'
 });
 
-export default async function ensureNodeEnv() {
-    if (!process.env.NODE_ENV) {
-        const env = CLIReader.parseArgv([nodeEnvConfig]) as NodeEnvArgs;
-        if (env.NODE_ENV) {
-            process.env.NODE_ENV;
-        } else {
-            console.warn('WARNING: NODE_ENV is not set. Please select an environment.');
-            process.env.NODE_ENV = (await CLIReader.prompt(nodeEnvConfig)) as Environment;
-        }
+export default async function ensureNodeEnv(defaultEnv?: Environment) {
+    if (process.env.NODE_ENV && nodeEnvConfig.enumValues?.has(process.env.NODE_ENV)) {
+        return;
+    }
+    const args = CLIReader.parseArgv([nodeEnvConfig]) as NodeEnvArgs;
+    if (args.NODE_ENV) {
+        process.env.NODE_ENV = args.NODE_ENV;
+    } else if (defaultEnv && nodeEnvConfig.enumValues?.has(defaultEnv)) {
+        process.env.NODE_ENV = defaultEnv;
+    } else {
+        console.warn('WARNING: NODE_ENV is not set. Please select an environment.');
+        process.env.NODE_ENV = (await CLIReader.prompt(nodeEnvConfig)) as Environment;
     }
 }
