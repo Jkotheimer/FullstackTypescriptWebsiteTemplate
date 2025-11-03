@@ -263,6 +263,17 @@ export default class CLIReader {
                 args[key] = parseResult.value;
             }
         }
+        configs.forEach((config) => {
+            if (args[config.key] != null) {
+                return;
+            }
+            if (config.defaultValue != null) {
+                args[config.key] = config.defaultValue;
+            } else if (config.required) {
+                let flagsText = config.flags ? ` (${Array.from(config.flags).join(', ')})` : '';
+                errors.push(`Missing required argument: ${config.label}${flagsText}.`);
+            }
+        });
         if (errors.length) {
             throw new Error(errors.join('\n'));
         }
