@@ -28,7 +28,7 @@ app.use(
     Express.json({
         inflate: true,
         strict: true,
-        limit: '1mb'
+        limit: '1kb'
     })
 );
 
