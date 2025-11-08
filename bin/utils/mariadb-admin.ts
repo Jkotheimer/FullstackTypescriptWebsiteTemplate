@@ -86,9 +86,13 @@ export default class MariaDBAdmin {
         }
     }
 
-    public static async execFromFile(filepath: string) {
+    public static async execFromFile(filepath: string, preprocess?: (sql: string) => string) {
         MariaDBAdmin.ensureMysqlEnvironmentVars();
-        return MariaDBAdmin.exec(MariaDBAdmin.getSQLFromFile(filepath));
+        let sql = MariaDBAdmin.getSQLFromFile(filepath);
+        if (preprocess) {
+            sql = preprocess(sql);
+        }
+        return MariaDBAdmin.exec(sql);
     }
 
     public static getSQLFromFile(filename: string): string {

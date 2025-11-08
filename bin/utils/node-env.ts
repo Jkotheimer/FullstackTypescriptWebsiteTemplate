@@ -19,7 +19,7 @@ export default async function ensureNodeEnv(defaultEnv?: Environment) {
     if (process.env.NODE_ENV && nodeEnvConfig.enumValues?.has(process.env.NODE_ENV)) {
         return;
     }
-    const args = CLIReader.parseArgv([nodeEnvConfig]) as NodeEnvArgs;
+    const args = CLIReader.parseArgv([nodeEnvConfig], false) as NodeEnvArgs;
     if (args.NODE_ENV) {
         process.env.NODE_ENV = args.NODE_ENV;
     } else if (defaultEnv && nodeEnvConfig.enumValues?.has(defaultEnv)) {

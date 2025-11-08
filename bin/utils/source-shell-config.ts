@@ -4,8 +4,10 @@ const QUOTE_DELIMS = ['"', "'"];
 
 export default function sourceShellConfig(filePath: string): Record<string, string> {
     if (!fs.existsSync(filePath)) {
+        console.error('File does not exist:', filePath);
         return {};
     }
+    console.log('Sourcing:', filePath);
     return Object.freeze(
         fs
             .readFileSync(filePath)

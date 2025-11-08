@@ -188,7 +188,10 @@ export default class CLIReader {
         });
     }
 
-    static parseArgv(configs: Array<CLIValueConfigInput> | Readonly<Array<CLIValueConfigInput>>): object {
+    static parseArgv(
+        configs: Array<CLIValueConfigInput> | Readonly<Array<CLIValueConfigInput>>,
+        strict: boolean = false
+    ): object {
         if (!Array.isArray(configs)) {
             throw new Error('Configs input must be an array.');
         }
@@ -229,14 +232,16 @@ export default class CLIReader {
             const flag: string = splitArg[0];
             const config: CLIValueConfig = configByArgFlags[flag];
             if (!config) {
-                errors.push(`Invalid argument: ${flag}`);
+                if (strict) {
+                    errors.push(`Invalid argument: ${flag}`);
+                }
                 continue;
             }
             const key: string = config.key;
             const label: string = `${config.label || config.key} [${flag}]`;
             let value: CLIValue = splitArg.slice(1, splitArg.length).join('');
             if (!value.length) {
-                if (i >= process.argv.length || configByArgFlags[process.argv[i + 1]]) {
+                if (i + 1 >= process.argv.length || configByArgFlags[process.argv[i + 1]]) {
                     if (config.type === 'boolean') {
                         value = true;
                     } else {
