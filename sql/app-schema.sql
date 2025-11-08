@@ -1,6 +1,5 @@
 CREATE DATABASE IF NOT EXISTS {tsk_database};
 USE {tsk_database};
-bullshit
 
 DROP PROCEDURE IF EXISTS initialize_db;
 
@@ -21,11 +20,8 @@ BEGIN
         Phone NVARCHAR(32),
         FirstName NVARCHAR(255),
         LastName NVARCHAR(255),
-        CurrentPasswordId INT UNSIGNED NOT NULL,
         EmailVerified BOOLEAN DEFAULT FALSE,
         IsActive BOOLEAN DEFAULT TRUE,
-        CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-        LastModifiedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
         ActivatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
         PRIMARY KEY (Id)
     ) CHARACTER SET utf8mb4;
@@ -57,10 +53,6 @@ BEGIN
             ON UPDATE RESTRICT,
         PRIMARY KEY (Id)
     ) CHARACTER SET utf8mb4;
-
-    ALTER TABLE User
-        ADD CONSTRAINT UserCurrentPassword 
-        FOREIGN KEY (CurrentPasswordId) REFERENCES UserCredential(Id);
 
     CREATE TABLE Organization (
         Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
