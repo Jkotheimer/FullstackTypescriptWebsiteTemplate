@@ -3,8 +3,7 @@ import { DatabaseError, RequestError } from '@database/models/errors';
 import UserRepository from '@database/repositories/user';
 import Constants from '@constants/shared';
 import User from '@database/models/user';
-
-const router = express.Router();
+import StringUtils from '@utils/string';
 
 /**
  * @description Fetch User Details by ID
@@ -57,27 +56,37 @@ async function getUserById(request: Request, response: Response) {
  */
 async function createUser(request: Request, response: Response) {
     try {
-        console.log(request.session.id);
-        if (!request.session.id) {
+        console.log('Session:', request.session);
+        console.log('SessionID:', request.sessionID);
+        if (!request.session?.id) {
             throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.SESSION_NOT_FOUND);
         }
-        const inputUser: User = await User.from(request.body);
-        //const createdUser = await UserRepository.createUser(inputUser);
+        if (!request.body) {
+            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.INVALID_PAYLOAD);
+        }
+        // TODO Change password length to dynamic from describe
+        const inputUser: User = User.from(request.body);
+        if (typeof request.body.Password !== 'string') {
+            const errorMessage = StringUtils.format(Constants.ERROR_MESSAGES.REQUIRED_FIELDS_MISSING, ['', 'Password']);
+            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, errorMessage);
+        }
+        const createdUser = await UserRepository.createUser(inputUser, request.body.Password);
         response.status(201).json({
             message: 'Success',
-            data: inputUser
+            data: createdUser
         });
     } catch (error) {
         console.error(error);
         let errorMessage = error instanceof Error ? error.message : Constants.ERROR_MESSAGES.UNEXPECTED;
         let statusCode = Constants.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR;
         if (error instanceof DatabaseError) {
-            errorMessage = error.message;
             switch (error.code) {
                 case Constants.MYSQL_ERROR_CODES.ER_DUP_ENTRY:
                     statusCode = Constants.HTTP_STATUS_CODES.CONFLICT;
                     break;
             }
+        } else if (error instanceof RequestError) {
+            statusCode = error.statusCode ?? Constants.HTTP_STATUS_CODES.BAD_REQUEST;
         }
         response.status(statusCode).json({
             message: errorMessage
@@ -134,7 +143,7 @@ async function updateUser(request: Request, response: Response) {
 async function deactivateUser(request: Request, response: Response) {
     try {
         const payload = request.body;
-        console.log('DELETE USER', payload, request.params);
+        console.log('DEACTIVATE USER', payload, request.params);
         const userId = request.params.id;
         const result = await UserRepository.deactivateUser(userId);
 
@@ -185,6 +194,7 @@ async function deleteUser(request: Request, response: Response) {
     }
 }
 
+const router = express.Router();
 router.post('/', createUser);
 router.get('/:id', getUserById);
 router.patch('/:id', updateUser);

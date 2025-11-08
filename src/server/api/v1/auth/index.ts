@@ -1,11 +1,12 @@
 import express, { Request, Response } from 'express';
-import UserRepository, { UserAction } from '@database/repositories/user';
+import UserRepository from '@database/repositories/user';
 import { RequestError } from '@database/models/errors';
 import Crypto from '@utils/security/crypto';
 import UserModel from '@database/models/user';
 import Constants from '@constants/shared';
 import Auth from '@utils/security/auth';
 import Utils from '@utils/utils';
+import User from '@database/models/user';
 
 const router = express.Router();
 
@@ -17,15 +18,15 @@ const router = express.Router();
 async function login(request: Request, response: Response) {
     try {
         const clientId = request.header(Constants.HEADERS.CLIENT_ID);
-        const inputUser = await UserModel.from(request.body);
 
         if (!clientId?.length) {
             throw new Error(Constants.ERROR_MESSAGES.INVALID_CLIENT_ID);
         }
 
+        const inputUser = UserModel.from(request.body);
+
         // Validate that request body only has email and password fields
-        const fields = await UserRepository.getFieldDescribesFor(UserAction.AUTH);
-        Utils.validateFields(inputUser, fields);
+        Utils.validateFields(inputUser, [User.getDescribe().fieldMap.Email]);
 
         // Validate password credentials
         const storedUser: UserModel = await UserRepository.getUserForAuthentication(inputUser.Email!);

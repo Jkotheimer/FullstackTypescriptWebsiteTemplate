@@ -47,14 +47,16 @@ export default class Constants {
 
     public static readonly ERROR_MESSAGES = class {
         public static readonly UNEXPECTED = 'An unexpected error occurred.';
-        public static readonly FIELD_DOES_NOT_EXIST = 'The field "{0}" does not exist on the "{1}" table.';
         public static readonly INVALID_API_VERSION = 'Invalid API Version: {0}.';
         public static readonly INVALID_FIELDS = 'Invalid field{0}: [ {1} ]';
-        public static readonly INVALID_CLIENT_ID = 'Invalid client detected. Please use an authorized client application.';
-        public static readonly INVALID_USER_CREDENTIALS = 'Invalid email/password. Please check your credentials and try again.';
+        public static readonly INVALID_PAYLOAD = 'Invalid payload.';
+        public static readonly INVALID_CLIENT_ID =
+            'Invalid client detected. Please use an authorized client application.';
+        public static readonly INVALID_USER_CREDENTIALS =
+            'Invalid email/password. Please check your credentials and try again.';
         public static readonly USER_ALREADY_HAS_ID = 'This User already has an Id.';
         public static readonly USER_ALREADY_EXISTS = 'A user with the provided email already exists.';
-        public static readonly USER_NOT_FOUND = 'Unable to find a user with the provided {0}.';
+        public static readonly USER_NOT_FOUND = 'Unable to find a user with the provided {0}: {1}';
         public static readonly REQUIRED_FIELDS_MISSING = 'Missing required field{0}: {1}';
         public static readonly SESSION_NOT_FOUND = 'Session id not found.';
         public static readonly CANNOT_DELETE_RECORD_WITHOUT_ID = 'Cannot delete a record that does not have an Id.';

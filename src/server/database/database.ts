@@ -2,13 +2,7 @@ import { DatabaseError } from '@database/models/errors';
 import BaseModel from '@database/models/base';
 import mysql from 'mysql2';
 import Constants from '@constants/shared';
-
-export enum BaseAction {
-    CREATE = 'CREATE',
-    READ = 'READ',
-    UPDATE = 'UPDATE',
-    DELETE = 'DELETE'
-}
+import ModuleEventBus from '@utils/events/module-event-bus';
 
 export class TransactionError extends Error {
     transactionInitError?: mysql.QueryError;
@@ -23,13 +17,21 @@ export default class Database {
      * Static initializer to initialize database connection
      */
     static {
+        ModuleEventBus.signalInit(this);
         Database.connection = mysql.createConnection({
             host: process.env.MYSQL_HOST,
             database: process.env.MYSQL_DATABASE,
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASSWORD
         });
-        Database.connection.on('error', console.error);
+        Database.connection.on('error', (error) => {
+            console.error('Got database connection error:', error);
+            ModuleEventBus.signalError(this, error);
+        });
+        Database.connection.on('connect', () => {
+            console.log('Database is connected!');
+            ModuleEventBus.signalReady(this);
+        });
     }
 
     public static checkConnection(): boolean {

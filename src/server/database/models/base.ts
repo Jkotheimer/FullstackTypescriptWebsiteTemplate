@@ -4,44 +4,46 @@ import GlobalDescribe, { TableDescribe } from '@database/describe';
 
 export default class BaseModel {
     public Id?: string;
+    public CreatedTimestamp?: number;
+    public LastModifiedTimestamp?: number;
+
+    public static readonly READONLY_FIELDS = new Set<string>(['Id', 'CreatedTimestamp', 'LastModifiedTimestamp']);
 
     /**
      * @description Static factory method to generate a single base model instance
      * @param record Record input to generate model from
-     * @returns {Promise<BaseModel>} Resolves the model instance
      */
-    protected static async from(record: Record<string, any>): Promise<BaseModel> {
-        const tableDescribe = await this.getDescribe();
+    protected static from(record: Record<string, any>): BaseModel {
+        const tableDescribe = this.getDescribe();
+        console.log('Table describe:', tableDescribe);
         const model = new this();
         Object.keys(record).forEach((key) => {
-            const convertedKey = key.replace(/_x$/, '') as keyof BaseModel;
-            console.log(convertedKey);
-            const fieldDescribe = tableDescribe.fields.find((field) => field.name === convertedKey);
-            if (!fieldDescribe) {
-                throw new Error(StringUtils.format(Constants.ERROR_MESSAGES.FIELD_DOES_NOT_EXIST, [key, this.name]));
-            }
             let value = record[key];
-            if (fieldDescribe.type === Constants.DB.BOOLEAN_TYPE) {
-                value = typeof value === 'boolean' ? value : value == 1;
+            const convertedKey = key.replace(/_x$/, '') as keyof BaseModel;
+            const fieldDescribe = tableDescribe.fieldMap[convertedKey];
+            if (fieldDescribe) {
+                if (fieldDescribe.type === Constants.DB.BOOLEAN_TYPE) {
+                    value = typeof value === 'boolean' ? value : value == 1;
+                }
+            } else if (!this.hasOwnProperty(convertedKey)) {
+                throw new Error(StringUtils.format(Constants.ERROR_MESSAGES.INVALID_FIELDS, ['', key]));
             }
-            model[convertedKey] = value;
+            Object.assign(model, { [convertedKey]: value });
         });
         return model;
     }
 
     /**
      * @description Get a describe for this table
-     * @returns {Promise<TableDescribe>}
      */
-    public async getDescribe(): Promise<TableDescribe> {
+    public getDescribe(): TableDescribe {
         return GlobalDescribe.get(this.constructor.name);
     }
 
     /**
      * @description Get a describe for this table
-     * @returns {Promise<TableDescribe>}
      */
-    public static async getDescribe(): Promise<TableDescribe> {
+    public static getDescribe(): TableDescribe {
         return GlobalDescribe.get(this.name);
     }
 
@@ -53,11 +55,10 @@ export default class BaseModel {
 
     /**
      * @description Clone this instance, but escape the string values of every property to be safe for a SQL query
-     * @returns {Promise<BaseModel>}
      */
-    public async createQuerySafeClone(): Promise<BaseModel> {
+    public createQuerySafeClone(): BaseModel {
         const clone: Record<string, any> = {};
-        const describe = await this.getDescribe();
+        const describe = this.getDescribe();
         describe.fields.forEach((field) => {
             let value = this[field.name as keyof BaseModel];
             if (value == null) {
