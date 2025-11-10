@@ -2,8 +2,6 @@
  * @description Gulpfile for compiling SCSS to minified CSS, compiling TS to minified JS, and copying images and dependencies to the build/ directory
  */
 import CLIReader, { CLIValueConfig } from './bin/utils/cli-reader.ts';
-import sourceShellConfig from './bin/utils/source-shell-config.ts';
-import ensureNodeEnv from './bin/utils/node-env.ts';
 
 import beautifyCode from 'gulp-beautify-code';
 import autoprefixer from 'gulp-autoprefixer';
@@ -54,22 +52,6 @@ const ARGS = CLIReader.parseArgv([
     })
 ]);
 
-ensureNodeEnv('development').then(() => {
-    console.log('Env configured:', process.env.NODE_ENV);
-});
-// Set environment variables
-if (!environments[process.env.NODE_ENV]) {
-    console.warn('WARNING: Environment does not exist:', process.env.NODE_ENV);
-    console.warn('Creating environment:', process.env.NODE_ENV);
-    environments.make(process.env.NODE_ENV);
-}
-environments.current(environments[process.env.NODE_ENV]);
-
-// Environment vars
-const DOT_ENV_NAME = `.env.${process.env.NODE_ENV}`;
-const DOT_ENV = path.resolve(__dirname, DOT_ENV_NAME);
-console.log(DOT_ENV);
-
 // Define source directories
 const SRC_DIR = path.resolve(__dirname, 'src');
 const SRC_DIR_CLIENT = path.resolve(SRC_DIR, 'client');
@@ -83,25 +65,6 @@ const OUT_DIR_SERVER = OUT_DIR;
 if (!fs.existsSync(OUT_DIR)) {
     fs.mkdirSync(OUT_DIR);
 }
-
-// Typescript project configuration
-const TS_CONFIG_CLIENT = JSON.parse(fs.readFileSync('tsconfig.json').toString());
-TS_CONFIG_CLIENT.exclude.push('./src/server/**/*');
-TS_CONFIG_CLIENT.compilerOptions.target = 'ES5';
-TS_CONFIG_CLIENT.compilerOptions.lib = ['ES5', 'ES6', 'DOM'];
-TS_CONFIG_CLIENT.compilerOptions.moduleResolution = 'bundler';
-const TS_CONFIG_CLIENT_FILE = path.resolve('tsconfig.client.json');
-fs.writeFileSync(TS_CONFIG_CLIENT_FILE, JSON.stringify(TS_CONFIG_CLIENT, null, 4));
-const TS_PROJECT_CLIENT = typescript.createProject(TS_CONFIG_CLIENT_FILE);
-
-const TS_CONFIG_SERVER = JSON.parse(fs.readFileSync('tsconfig.json').toString());
-TS_CONFIG_SERVER.exclude.push('./src/client/**/*');
-TS_CONFIG_SERVER.compilerOptions.target = 'ES2020';
-TS_CONFIG_SERVER.compilerOptions.lib = ['ES2020'];
-TS_CONFIG_SERVER.compilerOptions.moduleResolution = 'node';
-const TS_CONFIG_SERVER_FILE = path.resolve('tsconfig.server.json');
-fs.writeFileSync(TS_CONFIG_SERVER_FILE, JSON.stringify(TS_CONFIG_SERVER, null, 4));
-const TS_PROJECT_SERVER = typescript.createProject(TS_CONFIG_SERVER_FILE);
 
 // Configuration for beautifying code
 const BEAUTIFY_CONFIG = Object.freeze({
@@ -185,6 +148,23 @@ class Client {
         return tasks;
     }
 
+    /** @type {typescript.Project} */
+    _tsproject;
+    static get tsproject() {
+        if (!this._tsproject) {
+            const tsconfig = JSON.parse(fs.readFileSync('tsconfig.json').toString());
+            tsconfig.exclude.push('./src/server/**/*');
+            tsconfig.compilerOptions.target = 'ES5';
+            tsconfig.compilerOptions.lib = ['ES5', 'ES6', 'DOM'];
+            tsconfig.compilerOptions.moduleResolution = 'bundler';
+            const tsconfigFile = path.resolve('tsconfig.client.json');
+            fs.writeFileSync(tsconfigFile, JSON.stringify(tsconfig));
+            this._tsproject = typescript.createProject(tsconfigFile);
+            fs.rmSync(tsconfigFile);
+        }
+        return this._tsproject;
+    }
+
     static initialClean() {
         return gulp.src(OUT_DIR_CLIENT, { read: false, allowEmpty: true }).pipe(clean());
     }
@@ -236,8 +216,9 @@ class Client {
      */
     static async compileTs(callback) {
         const webpackConfig = await import(`./webpack.config.js?${cacheBuster++}`);
-        const stream = TS_PROJECT_CLIENT.src()
-            .pipe(TS_PROJECT_CLIENT())
+        const stream = Client.tsproject
+            .src()
+            .pipe(Client.tsproject())
             .js.pipe(webpack(webpackConfig.default))
             .pipe(beautifyCode(BEAUTIFY_CONFIG))
             .pipe(gulp.dest(path.resolve(OUT_DIR_CLIENT, 'js')));
@@ -345,11 +326,33 @@ class Client {
 
 class Server {
     static get tasks() {
-        const tasks = [Server.compile, Server.portEnvironmentVariables, Server.resolveServerImports];
+        const tasks = [
+            Server.initalClean,
+            Server.compile,
+            Server.portEnvironmentVariables,
+            Server.resolveServerImports
+        ];
         if (ARGS.WATCH) {
             tasks.push(Server.watch);
         }
         return tasks;
+    }
+
+    /** @type {typescript.Project} */
+    _tsproject;
+    static get tsproject() {
+        if (!this._tsconfig) {
+            const tsconfig = JSON.parse(fs.readFileSync('tsconfig.json').toString());
+            tsconfig.exclude.push('./src/client/**/*');
+            tsconfig.compilerOptions.target = 'ES2020';
+            tsconfig.compilerOptions.lib = ['ES2020'];
+            tsconfig.compilerOptions.moduleResolution = 'node';
+            const tsconfigFile = path.resolve('tsconfig.server.json');
+            fs.writeFileSync(tsconfigFile, JSON.stringify(tsconfig));
+            this._tsproject = typescript.createProject(tsconfigFile);
+            fs.rmSync(tsconfigFile);
+        }
+        return this._tsproject;
     }
 
     static initalClean() {
@@ -362,20 +365,22 @@ class Server {
 
     // Task to compile TypeScript
     static compile() {
-        return TS_PROJECT_SERVER.src().pipe(TS_PROJECT_SERVER()).js.pipe(gulp.dest(OUT_DIR_SERVER));
+        return Server.tsproject.src().pipe(Server.tsproject()).js.pipe(gulp.dest(OUT_DIR_SERVER));
     }
 
     // Task to ensure .env file exists for current environment, and copy .env file over to destination folder
     static portEnvironmentVariables() {
-        if (!fs.existsSync(DOT_ENV)) {
-            throw new Error(`${DOT_ENV_NAME} file not found. Please run "npm run configure"`);
+        const dotEnvName = `.env.${process.env.NODE_ENV}`;
+        const dotEnvFile = path.resolve(__dirname, dotEnvName);
+        if (!fs.existsSync(dotEnvFile)) {
+            throw new Error(`${dotEnvName} file not found. Please run "npm run configure"`);
         }
-        return gulp.src(DOT_ENV).pipe(rename('.env')).pipe(gulp.dest(OUT_DIR_SERVER));
+        return gulp.src(dotEnvFile).pipe(rename('.env')).pipe(gulp.dest(OUT_DIR_SERVER));
     }
 
     // Task to change all import aliases to relative paths
     static resolveServerImports() {
-        const pathAliases = Object.keys(TS_PROJECT_SERVER.options.paths);
+        const pathAliases = Object.keys(Server.tsproject.options.paths);
 
         // Regex "if" block. e.g. api|database|utils|models
         const pathAliasesRegexSearch = pathAliases.map((p) => p.replace(/^@(.*?)(\/\*)?$/g, '$1')).join('|');
@@ -415,7 +420,7 @@ class Server {
                 return '';
             }
             // Assume each alias only maps to one local path. Remove tailing slash and/or wildcard from this path
-            const localPath = TS_PROJECT_SERVER.options.paths[pathAlias]?.[0]
+            const localPath = Server.tsproject.options.paths[pathAlias]?.[0]
                 ?.replace(/(\/\*|\/|\*)$/g, '')
                 ?.replace(/^\.\//, '');
             if (!localPath) {
@@ -495,6 +500,18 @@ class Server {
  * ------------ TASK QUEUING LOGIC --------------
  * ----------------------------------------------
  */
+
+// Set environment variables
+if (!process.env.NODE_ENV) {
+    console.warn('WARNING: Environment not set. Defaulting to "development"');
+    process.env.NODE_ENV = 'development';
+}
+if (!environments[process.env.NODE_ENV]) {
+    console.warn('WARNING: Environment does not exist:', process.env.NODE_ENV);
+    console.warn('Creating environment:', process.env.NODE_ENV);
+    environments.make(process.env.NODE_ENV);
+}
+environments.current(environments[process.env.NODE_ENV]);
 
 // Define tasks for all environments
 const tasks = [];
