@@ -1,9 +1,11 @@
 import express, { Request, Response } from 'express';
-import { DatabaseError, RequestError } from '@database/models/errors';
+import { RequestError } from '@database/models/errors';
 import UserRepository from '@database/repositories/user';
+import JsonApiResponse from '@models/jsonapi';
+import AuthUtils from '@utils/security/auth';
 import Constants from '@constants/shared';
 import User from '@database/models/user';
-import StringUtils from '@utils/string';
+import Utils from '@utils/utils';
 
 /**
  * @description Fetch User Details by ID
@@ -12,25 +14,10 @@ import StringUtils from '@utils/string';
  */
 async function getUserById(request: Request, response: Response) {
     try {
-        console.log(request.params);
         const user = await UserRepository.getUserDetails(request.params.id);
-
-        response.status(200).json({
-            message: 'Success',
-            data: user
-        });
+        response.status(200).json(new JsonApiResponse(user));
     } catch (error) {
-        console.error(error);
-        let errorMessage = error instanceof Error ? error.message : Constants.ERROR_MESSAGES.UNEXPECTED;
-        let statusCode = Constants.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR;
-        if (error instanceof RequestError) {
-            if (error.statusCode) {
-                statusCode = error.statusCode;
-            }
-        }
-        response.status(statusCode).send({
-            message: errorMessage
-        });
+        Utils.applyErrorToResponse(error, response);
     }
 }
 
@@ -38,11 +25,9 @@ async function getUserById(request: Request, response: Response) {
  * @description Create a user record.
  * Inputs:
  * - Valid CSRF token
- * - Valid ReCaptcha token
  * - JSON User payload
  * Logic:
  * - Validate CSRF token
- * - Validate ReCaptcha token
  * - Ensure all required fields and no extra fields are present
  * - Ensure unique email
  * - Ensure secure password
@@ -66,9 +51,8 @@ async function createUser(request: Request, response: Response) {
         }
         // TODO Change password length to dynamic from describe
         const inputUser: User = User.from(request.body);
-        if (typeof request.body.Password !== 'string') {
-            const errorMessage = StringUtils.format(Constants.ERROR_MESSAGES.REQUIRED_FIELDS_MISSING, ['', 'Password']);
-            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, errorMessage);
+        if (AuthUtils.preValidatePassword(inputUser.Password)) {
+            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.MALFORMED_PASSWORD);
         }
         const createdUser = await UserRepository.createUser(inputUser, request.body.Password);
         response.status(201).json({
@@ -76,21 +60,7 @@ async function createUser(request: Request, response: Response) {
             data: createdUser
         });
     } catch (error) {
-        console.error(error);
-        let errorMessage = error instanceof Error ? error.message : Constants.ERROR_MESSAGES.UNEXPECTED;
-        let statusCode = Constants.HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR;
-        if (error instanceof DatabaseError) {
-            switch (error.code) {
-                case Constants.MYSQL_ERROR_CODES.ER_DUP_ENTRY:
-                    statusCode = Constants.HTTP_STATUS_CODES.CONFLICT;
-                    break;
-            }
-        } else if (error instanceof RequestError) {
-            statusCode = error.statusCode ?? Constants.HTTP_STATUS_CODES.BAD_REQUEST;
-        }
-        response.status(statusCode).json({
-            message: errorMessage
-        });
+        Utils.applyErrorToResponse(error, response);
     }
 }
 
@@ -116,7 +86,7 @@ async function createUser(request: Request, response: Response) {
  */
 async function updateUser(request: Request, response: Response) {
     try {
-        const inputUser = await User.from(request.body);
+        const inputUser = User.from(request.body);
         inputUser.Id = request.params.id;
         console.log('UPDATE USER', inputUser);
         const result = await UserRepository.updateUser(inputUser);

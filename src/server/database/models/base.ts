@@ -15,7 +15,6 @@ export default class BaseModel {
      */
     protected static from(record: Record<string, any>): BaseModel {
         const tableDescribe = this.getDescribe();
-        console.log('Table describe:', tableDescribe);
         const model = new this();
         Object.keys(record).forEach((key) => {
             let value = record[key];

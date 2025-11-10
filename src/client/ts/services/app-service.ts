@@ -1,6 +1,6 @@
 import HttpClient from '@client/utils/http-client';
-import JSONAPIException from '@client/models/json-api-exception';
-import { JSONAPIPayload } from 'types/jsonapi';
+import JsonApiException from '@client/models/json-api-exception';
+import { JsonApiPayload } from 'jsonapi-types';
 import LoginForm from 'types/login-form';
 
 export default class AppService {
@@ -17,9 +17,9 @@ export default class AppService {
     /**
      * @description Attempt User login
      * @param {LoginForm} formData
-     * @returns {Promise<JSONAPIPayload>}
+     * @returns {Promise<JsonApiPayload>}
      */
-    public async login(formData: LoginForm): Promise<JSONAPIPayload> {
+    public async login(formData: LoginForm): Promise<JsonApiPayload> {
         const response = await this.client.post('/v1/api/login', {
             username: formData.username,
             password: formData.password
@@ -28,20 +28,20 @@ export default class AppService {
     }
 
     /**
-     * @description Check if the response is ok. If it is, return the body as a JSONAPIPayload. If not, throw a JSONAPIException
+     * @description Check if the response is ok. If it is, return the body as a JsonApiPayload. If not, throw a JsonApiException
      * @param response The response to process
-     * @returns {Promise<JSONAPIPayload>}
+     * @returns {Promise<JsonApiPayload>}
      */
-    private async handle(response: Response): Promise<JSONAPIPayload> {
+    private async handle(response: Response): Promise<JsonApiPayload> {
         try {
             if (response.ok) {
-                const body: JSONAPIPayload = (await response.json()) as JSONAPIPayload;
+                const body: JsonApiPayload = (await response.json()) as JsonApiPayload;
                 return body;
             }
             debugger;
             const contentType = response.headers.get('content-type');
             const isJson = contentType === 'applicatiion/json';
-            throw new JSONAPIException({
+            throw new JsonApiException({
                 message: `Callout failed with status: ${response.statusText} (${response.status})`,
                 errors: [
                     {
@@ -54,15 +54,15 @@ export default class AppService {
             });
         } catch (error) {
             console.error(error);
-            if (error instanceof JSONAPIException) {
+            if (error instanceof JsonApiException) {
                 throw error;
             }
             if (!(error instanceof Error)) {
-                throw new JSONAPIException({
+                throw new JsonApiException({
                     message: 'An unknown error occurred'
                 });
             }
-            throw new JSONAPIException({
+            throw new JsonApiException({
                 message: error.message
             });
         }

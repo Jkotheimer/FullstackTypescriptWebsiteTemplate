@@ -11,7 +11,7 @@ import * as InternalEvents from '@client/events';
 import Toast, { ToastProps } from '@client/components/toast';
 
 // Types & Models
-import JSONAPIException from '@client/models/json-api-exception';
+import JsonApiException from '@client/models/json-api-exception';
 import LoginForm from 'types/login-form';
 
 // Http webservice client
@@ -117,7 +117,7 @@ export default function ContactSupportForm(props: ContactSupportFormProps): Reac
             if (error instanceof Error) {
                 toastProps.message = error.message;
             }
-            if (error instanceof JSONAPIException) {
+            if (error instanceof JsonApiException) {
                 error.payload.errors?.forEach((error) => {
                     error.fields?.forEach((field) => {
                         inputRefs[field as keyof LoginForm]?.current?.setCustomValidity(error.detail);

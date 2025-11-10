@@ -6,11 +6,11 @@ const PRIVATE_KEY = fs.readFileSync(process.env.JWT_PRIVATE_KEY_FILE);
 const PUBLIC_KEY = fs.readFileSync(process.env.JWT_PUBLIC_KEY_FILE);
 const SIGN_OPTIONS: jwt.SignOptions = {
     algorithm: 'RS256',
-    expiresIn: Constants.SESSION_DURATION_SECONDS
+    expiresIn: Constants.SESSION.DURATION_SECONDS
 };
 const VERIFY_OPTIONS: jwt.VerifyOptions = {
     algorithms: ['RS256'],
-    maxAge: Constants.SESSION_DURATION_SECONDS
+    maxAge: Constants.SESSION.DURATION_SECONDS
 };
 
 export default class JWT {

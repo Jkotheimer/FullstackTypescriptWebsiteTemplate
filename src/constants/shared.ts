@@ -1,7 +1,13 @@
 export default class Constants {
     public static readonly PORT = 8080;
     public static readonly ENCODING_SCHEME = 'base64url';
-    public static readonly SESSION_DURATION_SECONDS = 60 * 15;
+    public static readonly JsonApi_VERSION = '1.1';
+
+    public static readonly SESSION = class {
+        public static readonly COOKIE_NAME = 'session_id';
+        public static readonly DURATION_SECONDS = 60 * 15;
+        public static readonly MAX_AGE = 120000;
+    };
 
     public static readonly HEADERS = class {
         public static readonly CLIENT_ID = 'x-application-client-id';
@@ -21,6 +27,8 @@ export default class Constants {
     public static readonly CRYPTO = class {
         public static readonly HASH_SALT_ROUNDS = 13;
         public static readonly JWT_ALGORITHM = 'hmacSHA512';
+        public static readonly PASSWORD_MIN_LENGTH = 10;
+        public static readonly PASSWORD_MAX_LENGTH = 4096;
     };
 
     public static readonly HTTP_STATUS_CODES = class {
@@ -47,6 +55,7 @@ export default class Constants {
 
     public static readonly ERROR_MESSAGES = class {
         public static readonly UNEXPECTED = 'An unexpected error occurred.';
+        public static readonly DB_DISCONNECTED = 'Database connection is severed. Please check server config';
         public static readonly INVALID_API_VERSION = 'Invalid API Version: {0}.';
         public static readonly INVALID_FIELDS = 'Invalid field{0}: [ {1} ]';
         public static readonly INVALID_PAYLOAD = 'Invalid payload.';
@@ -54,6 +63,7 @@ export default class Constants {
             'Invalid client detected. Please use an authorized client application.';
         public static readonly INVALID_USER_CREDENTIALS =
             'Invalid email/password. Please check your credentials and try again.';
+        public static readonly MALFORMED_PASSWORD = `Password must be between ${Constants.CRYPTO.PASSWORD_MIN_LENGTH} and ${Constants.CRYPTO.PASSWORD_MAX_LENGTH} characters.`;
         public static readonly USER_ALREADY_HAS_ID = 'This User already has an Id.';
         public static readonly USER_ALREADY_EXISTS = 'A user with the provided email already exists.';
         public static readonly USER_NOT_FOUND = 'Unable to find a user with the provided {0}: {1}';

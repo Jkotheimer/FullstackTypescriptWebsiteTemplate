@@ -49,7 +49,7 @@ export default class Database {
     public static async wrap(fn: Function | Promise<any>): Promise<any> {
         return new Promise<any>((resolve, reject) => {
             if (!Database.checkConnection()) {
-                reject('Database connection is severed. Please check server config');
+                reject(new DatabaseError(Constants.ERROR_MESSAGES.DB_DISCONNECTED));
             }
             Database.connection.beginTransaction(async (transactionInitError: mysql.QueryError | null) => {
                 if (transactionInitError) {
@@ -117,7 +117,7 @@ export default class Database {
     public static async insert(record: BaseModel): Promise<mysql.QueryResult> {
         return new Promise<mysql.QueryResult>(async (resolve, reject) => {
             const table = record.constructor.name;
-            const recordClone = await record.createQuerySafeClone();
+            const recordClone = record.createQuerySafeClone();
             const query = mysql.format('INSERT INTO ?? SET ?;', [table, recordClone]);
             console.log(query);
             Database.connection.query(query, (insertError: mysql.QueryError, result: mysql.QueryResult) => {
