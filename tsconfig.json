@@ -5,7 +5,7 @@
     "exclude": ["node_modules", "dist"],
     "compilerOptions": {
         "jsx": "react",
-        "target": "ES5",
+        "target": "ES2020",
         "baseUrl": "src",
         "rootDir": "src",
         "module": "ESNext",
@@ -17,6 +17,7 @@
             "@styles/*": ["client/scss/*"],
             "@images/*": ["client/images/*"],
             "@api/*": ["server/api/*"],
+            "@middleware/*": ["server/middleware/*"],
             "@database/*": ["server/database/*"],
             "@utils/*": ["server/utils/*"],
             "@models/*": ["models/*"],
