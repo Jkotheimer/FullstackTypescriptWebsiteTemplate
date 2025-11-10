@@ -2,6 +2,7 @@
  * @description Gulpfile for compiling SCSS to minified CSS, compiling TS to minified JS, and copying images and dependencies to the build/ directory
  */
 import CLIReader, { CLIValueConfig } from './bin/utils/cli-reader.ts';
+import sourceShellConfig from './bin/utils/source-shell-config.ts';
 import ensureNodeEnv from './bin/utils/node-env.ts';
 
 import beautifyCode from 'gulp-beautify-code';
@@ -52,20 +53,17 @@ const ARGS = CLIReader.parseArgv([
         flags: new Set(['--watch', '-w'])
     })
 ]);
-console.log('ARGS:', ARGS);
 
 ensureNodeEnv('development').then(() => {
     console.log('Env configured:', process.env.NODE_ENV);
 });
 // Set environment variables
-console.log('Current before:', environments.current());
 if (!environments[process.env.NODE_ENV]) {
     console.warn('WARNING: Environment does not exist:', process.env.NODE_ENV);
     console.warn('Creating environment:', process.env.NODE_ENV);
     environments.make(process.env.NODE_ENV);
 }
 environments.current(environments[process.env.NODE_ENV]);
-console.log('Current after:', environments.current());
 
 // Environment vars
 const DOT_ENV_NAME = `.env.${process.env.NODE_ENV}`;
@@ -87,18 +85,23 @@ if (!fs.existsSync(OUT_DIR)) {
 }
 
 // Typescript project configuration
-const TS_PROJECT_CLIENT = typescript.createProject('tsconfig.json');
-const TS_PROJECT_SERVER = typescript.createProject('tsconfig.json');
+const TS_CONFIG_CLIENT = JSON.parse(fs.readFileSync('tsconfig.json').toString());
+TS_CONFIG_CLIENT.exclude.push('./src/server/**/*');
+TS_CONFIG_CLIENT.compilerOptions.target = 'ES5';
+TS_CONFIG_CLIENT.compilerOptions.lib = ['ES5', 'ES6', 'DOM'];
+TS_CONFIG_CLIENT.compilerOptions.moduleResolution = 'bundler';
+const TS_CONFIG_CLIENT_FILE = path.resolve('tsconfig.client.json');
+fs.writeFileSync(TS_CONFIG_CLIENT_FILE, JSON.stringify(TS_CONFIG_CLIENT, null, 4));
+const TS_PROJECT_CLIENT = typescript.createProject(TS_CONFIG_CLIENT_FILE);
 
-TS_PROJECT_CLIENT.config.exclude.push('./src/server/**/*');
-TS_PROJECT_CLIENT.config.compilerOptions.target = 'ES5';
-TS_PROJECT_CLIENT.config.compilerOptions.lib = ['ES5', 'ES6', 'DOM'];
-TS_PROJECT_CLIENT.config.compilerOptions.moduleResolution = 'bundler';
-
-TS_PROJECT_SERVER.config.exclude.push('./src/client/**/*');
-TS_PROJECT_CLIENT.config.compilerOptions.target = 'ES2020';
-TS_PROJECT_CLIENT.config.compilerOptions.lib = ['ES2020'];
-TS_PROJECT_CLIENT.config.compilerOptions.moduleResolution = 'node';
+const TS_CONFIG_SERVER = JSON.parse(fs.readFileSync('tsconfig.json').toString());
+TS_CONFIG_SERVER.exclude.push('./src/client/**/*');
+TS_CONFIG_SERVER.compilerOptions.target = 'ES2020';
+TS_CONFIG_SERVER.compilerOptions.lib = ['ES2020'];
+TS_CONFIG_SERVER.compilerOptions.moduleResolution = 'node';
+const TS_CONFIG_SERVER_FILE = path.resolve('tsconfig.server.json');
+fs.writeFileSync(TS_CONFIG_SERVER_FILE, JSON.stringify(TS_CONFIG_SERVER, null, 4));
+const TS_PROJECT_SERVER = typescript.createProject(TS_CONFIG_SERVER_FILE);
 
 // Configuration for beautifying code
 const BEAUTIFY_CONFIG = Object.freeze({
@@ -157,20 +160,6 @@ function hashFileOrFolder(fileOrFolderPath) {
 
 /**
  * ----------------------------------------------
- * -------------- OUTPUT SANITIZERS -------------
- * ----------------------------------------------
- */
-
-/**
- * @description Cleans the output directory of all files
- * @returns {NodeJS.ReadWriteStream}
- */
-function clearOutputDir() {
-    return gulp.src(OUT_DIR, { read: false }).pipe(clean());
-}
-
-/**
- * ----------------------------------------------
  * -------------- STACK COMPILERS ---------------
  * ----------------------------------------------
  */
@@ -178,6 +167,7 @@ function clearOutputDir() {
 class Client {
     static get tasks() {
         const tasks = [
+            Client.initialClean,
             Client.copyImages,
             Client.copyTemplates,
             Client.compileSass,
@@ -193,6 +183,10 @@ class Client {
             tasks.push(Client.watch);
         }
         return tasks;
+    }
+
+    static initialClean() {
+        return gulp.src(OUT_DIR_CLIENT, { read: false, allowEmpty: true }).pipe(clean());
     }
 
     /**
@@ -308,12 +302,15 @@ class Client {
      */
     static cleanNonMinifiedCode() {
         return gulp
-            .src([
-                path.resolve(OUT_DIR_CLIENT, './**/*.js'),
-                path.resolve(OUT_DIR_CLIENT, './**/*.css'),
-                `!${path.resolve(OUT_DIR_CLIENT, './**/*.min.js')}`,
-                `!${path.resolve(OUT_DIR_CLIENT, './**/*.min.css')}`
-            ])
+            .src(
+                [
+                    path.resolve(OUT_DIR_CLIENT, './**/*.js'),
+                    path.resolve(OUT_DIR_CLIENT, './**/*.css'),
+                    `!${path.resolve(OUT_DIR_CLIENT, './**/*.min.js')}`,
+                    `!${path.resolve(OUT_DIR_CLIENT, './**/*.min.css')}`
+                ],
+                { allowEmpty: true }
+            )
             .pipe(clean());
     }
 
@@ -353,6 +350,14 @@ class Server {
             tasks.push(Server.watch);
         }
         return tasks;
+    }
+
+    static initalClean() {
+        const filesToClean = fs
+            .readdirSync(OUT_DIR_SERVER)
+            .map((dir) => path.resolve(dir))
+            .filter((dir) => dir !== OUT_DIR_CLIENT);
+        return gulp.src(filesToClean, { read: false, allowEmpty: true }).pipe(clean());
     }
 
     // Task to compile TypeScript
@@ -492,13 +497,12 @@ class Server {
  */
 
 // Define tasks for all environments
-const tasks = [clearOutputDir];
-
-if (ARGS.STACK === 'server' || ARGS.STACK === 'all') {
-    tasks.push(...Server.tasks);
-}
+const tasks = [];
 if (ARGS.STACK === 'client' || ARGS.STACK === 'all') {
     tasks.push(...Client.tasks);
+}
+if (ARGS.STACK === 'server' || ARGS.STACK === 'all') {
+    tasks.push(...Server.tasks);
 }
 
 // Evaluate all tasks for gulp to execute & set the default task as a series of all tasks that need to be executed for this environment
