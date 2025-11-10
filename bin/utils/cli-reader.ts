@@ -1,4 +1,3 @@
-import { error } from 'console';
 import readline from 'readline';
 
 // These type declarations are not included in the standard typescript lib,
@@ -61,10 +60,11 @@ export class CLIValueConfig implements ICLIValueConfig {
         return '';
     }
 
-    parseValue(value: CLIValue | undefined, label: string = this.label): CLIValueParseResult {
+    parseValue(value: CLIValue | undefined, useDefault: boolean = true): CLIValueParseResult {
         const result: CLIValueParseResult = {
-            value: value ?? this.defaultValue ?? this.fallbackDefaultValue
+            value: value ?? (useDefault ? (this.defaultValue ?? this.fallbackDefaultValue) : '')
         };
+        let label = this.label || this.key;
         if (this.required && value == null && this.defaultValue == null) {
             result.error = `Missing required value for ${label}.`;
             return result;
@@ -107,7 +107,10 @@ export class CLIValueConfig implements ICLIValueConfig {
         return result;
     }
 
-    apply(obj: Record<string, any>, value: CLIValue) {
+    apply(obj: Record<string, any>, value: CLIValue | CLIValueParseResult) {
+        if (typeof value === 'object') {
+            value = value.value || this.defaultValue || this.fallbackDefaultValue;
+        }
         const parseResult = this.parseValue(value);
         if (parseResult.error) {
             throw parseResult.error;
@@ -190,8 +193,9 @@ export default class CLIReader {
 
     static parseArgv(
         configs: Array<CLIValueConfigInput> | Readonly<Array<CLIValueConfigInput>>,
-        strict: boolean = false
-    ): object {
+        strict: boolean = true,
+        useDefaults: boolean = true
+    ): Record<string, CLIValue> {
         if (!Array.isArray(configs)) {
             throw new Error('Configs input must be an array.');
         }
@@ -240,7 +244,7 @@ export default class CLIReader {
             const key: string = config.key;
             const label: string = `${config.label || config.key} [${flag}]`;
             let value: CLIValue = splitArg.slice(1, splitArg.length).join('');
-            if (!value.length) {
+            if (!value?.length) {
                 if (i + 1 >= process.argv.length || configByArgFlags[process.argv[i + 1]]) {
                     if (config.type === 'boolean') {
                         value = true;
@@ -258,10 +262,10 @@ export default class CLIReader {
                         continue;
                     }
                 } else {
-                    value = process.argv[++i] as CLIValue;
+                    value = process.argv[++i];
                 }
             }
-            const parseResult = config.parseValue(value);
+            const parseResult = config.parseValue(value, useDefaults);
             if (parseResult.error) {
                 errors.push(parseResult.error);
             } else if (parseResult.value) {
@@ -272,10 +276,10 @@ export default class CLIReader {
             if (args[config.key] != null) {
                 return;
             }
-            if (config.defaultValue != null) {
+            if (config.defaultValue != null && useDefaults) {
                 args[config.key] = config.defaultValue;
             } else if (config.required) {
-                let flagsText = config.flags ? ` (${Array.from(config.flags).join(', ')})` : '';
+                const flagsText = config.flags ? ` (${Array.from(config.flags).join(', ')})` : '';
                 errors.push(`Missing required argument: ${config.label}${flagsText}.`);
             }
         });

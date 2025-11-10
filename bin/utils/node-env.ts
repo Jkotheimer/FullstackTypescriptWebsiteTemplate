@@ -19,12 +19,15 @@ export default async function ensureNodeEnv(defaultEnv?: Environment) {
     if (process.env.NODE_ENV && nodeEnvConfig.enumValues?.has(process.env.NODE_ENV)) {
         return;
     }
-    const args = CLIReader.parseArgv([nodeEnvConfig], false) as NodeEnvArgs;
-    if (args.NODE_ENV) {
-        process.env.NODE_ENV = args.NODE_ENV;
+    const result = CLIReader.parseArgv([nodeEnvConfig], false);
+    if (result.NODE_ENV.value) {
+        process.env.NODE_ENV = result.NODE_ENV.value as string;
     } else if (defaultEnv && nodeEnvConfig.enumValues?.has(defaultEnv)) {
         process.env.NODE_ENV = defaultEnv;
     } else {
+        if (result.NODE_ENV.error) {
+            console.error(result.NODE_ENV.error);
+        }
         console.warn('WARNING: NODE_ENV is not set. Please select an environment.');
         process.env.NODE_ENV = (await CLIReader.prompt(nodeEnvConfig)) as Environment;
     }
