@@ -1,18 +1,15 @@
 import Constants from '@constants/shared';
 import Session from 'express-session';
 import { randomUUID } from 'crypto';
-import fs from 'fs';
 
-if (!fs.existsSync(process.env.SESSION_SECRET_FILE)) {
+if (!process.env.SESSION_SECRET) {
     throw new Error(
-        `SESSION SECRET FILE IS MISSING! Ensure there is a valid secret file located at ${process.env.SESSION_SECRET_FILE}`
+        'SESSION SECRET IS MISSING FROM ENVIRONMENT! Unable to start the server without a valid session secret'
     );
 }
 
-const SESSION_SECRET = fs.readFileSync(process.env.SESSION_SECRET_FILE).toString();
-
 export default Session({
-    secret: SESSION_SECRET,
+    secret: process.env.SESSION_SECRET,
     name: Constants.SESSION.COOKIE_NAME,
     saveUninitialized: true,
     unset: 'destroy',
@@ -21,7 +18,7 @@ export default Session({
     proxy: false,
     genid: () => {
         return randomUUID({
-            disableEntropyCache: true
+            disableEntropyCache: false
         });
     },
     cookie: {

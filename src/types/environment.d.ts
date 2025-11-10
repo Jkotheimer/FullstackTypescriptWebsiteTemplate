@@ -10,7 +10,7 @@ declare global {
             LOG_FILE_PATH: string;
             JWT_PRIVATE_KEY_FILE: string;
             JWT_PUBLIC_KEY_FILE: string;
-            SESSION_SECRET_FILE: string;
+            SESSION_SECRET: string;
         }
     }
 }
