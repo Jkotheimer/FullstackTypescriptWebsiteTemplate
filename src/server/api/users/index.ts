@@ -17,6 +17,7 @@ async function getUserById(request: Request, response: Response) {
         const user = await UserRepository.getUserDetails(request.params.id);
         response.status(200).json(new JsonApiResponse(user));
     } catch (error) {
+        console.error(error);
         Utils.applyErrorToResponse(error, response);
     }
 }

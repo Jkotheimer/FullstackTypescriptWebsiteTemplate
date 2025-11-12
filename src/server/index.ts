@@ -27,6 +27,7 @@ app.use(handleServerError);
 const asyncModules: Set<Function> = new Set<Function>();
 
 function handleModuleInit(event: ModuleEvent) {
+    console.log('Module initializing:', event.detail.module.name);
     asyncModules.add(event.detail.module);
 }
 

@@ -1,7 +1,9 @@
-import Database from '@database/database';
 import ModuleEventBus from '@utils/events/module-event-bus';
+import AsyncModule from '@utils/async-module';
+import Database from '@database/database';
 
-export default class GlobalDescribe {
+export default class GlobalDescribe extends AsyncModule {
+    protected static priority: number = 1;
     private static cache: Record<string, TableDescribe> = {};
 
     /**
@@ -9,8 +11,9 @@ export default class GlobalDescribe {
      * We use the event bus to tell the main module when we are ready for service.
      */
     static {
-        ModuleEventBus.signalInit(this);
+        this.signalInit();
         ModuleEventBus.addEventListener(ModuleEventBus.SYSTEM_EVENTS.MODULE_READY, async (event) => {
+            console.log(event.detail.module.name, event.type);
             if (event.detail.module !== Database) {
                 return;
             }
@@ -29,10 +32,9 @@ export default class GlobalDescribe {
                     );
                 });
                 await Promise.all(promises);
-                ModuleEventBus.signalReady(this);
+                this.signalReady();
             } catch (error) {
-                console.error('Global Descrie Error:', error);
-                ModuleEventBus.signalError(this, error as Error);
+                this.signalError(error as Error);
             }
         });
     }
