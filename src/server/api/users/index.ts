@@ -44,7 +44,7 @@ async function createUser(request: Request, response: Response) {
     try {
         console.log('Session:', request.session);
         console.log('SessionID:', request.sessionID);
-        if (!request.session?.id) {
+        if (!request.sessionID?.length) {
             throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.SESSION_NOT_FOUND);
         }
         if (!request.body) {

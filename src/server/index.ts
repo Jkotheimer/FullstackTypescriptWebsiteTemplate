@@ -6,7 +6,7 @@ import helmet from 'helmet';
 
 import ModuleEventBus, { ModuleEvent } from '@utils/events/module-event-bus';
 import { handle404, handleServerError } from '@middleware/error-handlers';
-import JsonMiddleware from '@middleware/json-payload-parser';
+import BodyParserMiddleware from '@middleware/body-parser';
 import SessionMiddleware from '@middleware/session';
 import StaticFiles from '@middleware/static-files';
 import Constants from '@constants/shared';
@@ -17,7 +17,7 @@ const app = Express();
 app.disable('x-powered-by');
 app.use(helmet({}));
 app.use(SessionMiddleware);
-app.use(JsonMiddleware);
+app.use(BodyParserMiddleware);
 app.use('/', StaticFiles);
 app.use('/api', API);
 app.use(handle404);
