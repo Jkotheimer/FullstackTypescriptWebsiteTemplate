@@ -2,7 +2,6 @@ import express, { Request, Response } from 'express';
 import { RequestError } from '@database/models/errors';
 import UserRepository from '@database/repositories/user';
 import JsonApiResponse from '@models/jsonapi';
-import AuthUtils from '@utils/security/auth';
 import Constants from '@constants/shared';
 import User from '@database/models/user';
 import Utils from '@utils/utils';
@@ -42,25 +41,20 @@ async function getUserById(request: Request, response: Response) {
  */
 async function createUser(request: Request, response: Response) {
     try {
-        console.log('Session:', request.session);
-        console.log('SessionID:', request.sessionID);
         if (!request.sessionID?.length) {
             throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.SESSION_NOT_FOUND);
         }
         if (!request.body) {
             throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.INVALID_PAYLOAD);
         }
-        // TODO Change password length to dynamic from describe
         const inputUser: User = User.from(request.body);
-        if (AuthUtils.preValidatePassword(inputUser.Password)) {
-            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.MALFORMED_PASSWORD);
-        }
-        const createdUser = await UserRepository.createUser(inputUser, request.body.Password);
+        const createdUser = await UserRepository.createUser(inputUser);
         response.status(201).json({
             message: 'Success',
             data: createdUser
         });
     } catch (error) {
+        console.error(error);
         Utils.applyErrorToResponse(error, response);
     }
 }

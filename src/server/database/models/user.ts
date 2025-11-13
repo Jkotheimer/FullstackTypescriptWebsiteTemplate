@@ -3,8 +3,18 @@
  */
 import BaseModel from '@database/models/base';
 
-export default class User extends BaseModel {
-    public FirstName?: string;
+export interface IUser {
+    FirstName?: string;
+    LastName?: string;
+    Email?: string;
+    Phone?: string;
+    Password?: string;
+    EmailVerified?: boolean;
+    IsActive?: boolean;
+    ActivatedDate?: Date;
+}
+
+export default class User extends BaseModel implements IUser {
     public LastName?: string;
     public Email?: string;
     public Phone?: string;
@@ -30,7 +40,11 @@ export default class User extends BaseModel {
      * @description Parse a data object into a user instance
      * @param data The raw untyped user data. Either from a request payload or database query
      */
-    public static from(data: any): User {
-        return super.from(data) as User;
+    public static from(data: IUser): User {
+        const password = data.Password;
+        delete data.Password;
+        const user: User = super.from(data);
+        user.Password = password;
+        return user;
     }
 }

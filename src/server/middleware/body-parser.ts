@@ -31,12 +31,10 @@ export default function json(request: Request, response: Response, next: Functio
         request.removeListener('data', onChunk);
         request.removeListener('end', onEnd);
         if (payloadLength <= 0) {
-            console.log('No payload');
             next();
             return;
         }
         const contentType = request.headers['content-type'];
-        console.log('content type:', contentType);
         if (!contentType) {
             const jsonApiPayload = new JsonApiResponse();
             jsonApiPayload.addError({

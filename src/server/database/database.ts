@@ -10,8 +10,11 @@ export class TransactionError extends Error {
     rollbackError?: mysql.QueryError;
 }
 
+export type TransactionFunction = () => Promise<any> | any;
+
 export default class Database extends AsyncModule {
     public static pool: mysql.Pool;
+    private static currentConnection: mysql.PoolConnection | null;
 
     static {
         try {
@@ -35,6 +38,9 @@ export default class Database extends AsyncModule {
     }
 
     public static async getConnection(): Promise<mysql.PoolConnection> {
+        if (Database.currentConnection != null) {
+            return Database.currentConnection;
+        }
         return new Promise<mysql.PoolConnection>((resolve, reject) => {
             Database.pool.getConnection((error: NodeJS.ErrnoException | null, connection: mysql.PoolConnection) => {
                 if (error) {
@@ -48,10 +54,9 @@ export default class Database extends AsyncModule {
 
     /**
      * @description Wrap a function or promise in a SQL transaction
-     * @param fn Function to call or promise to await
-     * @returns {Promise<any, TransactionError>}
+     * @param fn Function to call
      */
-    public static async wrap(fn: Function | Promise<any>): Promise<any> {
+    public static async wrap(fn: TransactionFunction): Promise<any> {
         const connection: mysql.PoolConnection = await Database.getConnection();
         return new Promise<any>((resolve, reject) => {
             connection.beginTransaction(async (transactionInitError: mysql.QueryError | null) => {
@@ -61,12 +66,9 @@ export default class Database extends AsyncModule {
                     reject(error);
                 }
                 try {
-                    let result;
-                    if (fn instanceof Promise) {
-                        result = await fn;
-                    } else {
-                        result = await fn();
-                    }
+                    Database.currentConnection = connection;
+                    const result = await fn();
+                    Database.currentConnection = null;
                     connection.commit((commitError) => {
                         if (commitError) {
                             const error = new TransactionError();

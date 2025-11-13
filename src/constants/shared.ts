@@ -25,7 +25,7 @@ export default class Constants {
     };
 
     public static readonly CRYPTO = class {
-        public static readonly HASH_SALT_ROUNDS = 13;
+        public static readonly HASH_SALT_ROUNDS = 14;
         public static readonly JWT_ALGORITHM = 'hmacSHA512';
         public static readonly PASSWORD_MIN_LENGTH = 10;
         public static readonly PASSWORD_MAX_LENGTH = 4096;

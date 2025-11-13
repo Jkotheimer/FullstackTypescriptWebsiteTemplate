@@ -1,10 +1,13 @@
 import { DatabaseError, RequestError } from '@database/models/errors';
 import Database from '@database/database';
 import Constants from '@constants/shared';
+import ServerConstants from '@constants/server';
 import User from '@database/models/user';
 import Crypto from '@utils/security/crypto';
 import StringUtils from '@utils/string';
+import AuthUtils from '@utils/security/auth';
 import Utils from '@utils/utils';
+import UserCredential from '@database/models/user-credential';
 
 export default class UserRepository {
     /**
@@ -54,21 +57,38 @@ export default class UserRepository {
 
     /**
      * @description Create a new user record
-     * @param user User object to create
-     * @returns The created user object with a unique Id
      */
-    public static async createUser(user: User, password: string): Promise<User> {
-        const fields = User.getDescribe().fields.filter((field) => !User.READONLY_FIELDS.has(field.name));
-        console.log('Create fields:', fields);
-        Utils.validateFields(user, fields);
-        try {
-            // Insert the user record, apply the new record id, and clear out the password before returning the new user record
-            const result = await Database.insert(user);
-            console.log('User insert result:', result);
-            const hashedPassword = await Crypto.hashPassword(password);
-            console.log('hashed password:', hashedPassword);
+    public static async createUser(user: User): Promise<string> {
+        console.log('User:', user);
+        const createbleFields = User.getDescribe().fields.filter((field) => !User.READONLY_FIELDS.has(field.name));
 
-            return user;
+        // Password is not a field on the User table, it is validated separately
+        const password = user.Password;
+        delete user.Password;
+
+        // Validate regular fields first, then password last
+        Utils.validateFields(user, createbleFields);
+        if (!password || !AuthUtils.preValidatePassword(password)) {
+            console.log('invalid password:', password);
+            throw new RequestError(Constants.ERROR_CODES.BAD_REQUEST, Constants.ERROR_MESSAGES.MALFORMED_PASSWORD);
+        }
+
+        try {
+            // Insert the user record and return the record with it's new id
+            return await Database.wrap(async () => {
+                const result = await Database.insert(user);
+                user.Id = result.insertId;
+                const hashedPassword = await Crypto.hashPassword(password);
+                const userCredential = UserCredential.from({
+                    UserId: user.Id,
+                    Value: hashedPassword,
+                    Type: 'password',
+                    ExpirationDate: new Date(Date.now() + ServerConstants.PASSWORD_TTL),
+                    IsActive: true
+                });
+                await Database.insert(userCredential);
+                return result.insertId;
+            });
         } catch (error) {
             if (error instanceof DatabaseError) {
                 // Override default MySQL error messages with more user-friendly custom error messages
@@ -109,7 +129,7 @@ export default class UserRepository {
     }
 
     public static async deactivateUser(userId: string): Promise<User> {
-        const user = await User.from({
+        const user = User.from({
             Id: userId,
             IsActive: false
         });

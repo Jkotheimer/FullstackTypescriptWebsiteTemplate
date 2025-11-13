@@ -1,8 +1,15 @@
 import Constants from '@constants/shared';
 import StringUtils from '@utils/string';
 import GlobalDescribe, { TableDescribe } from '@database/describe';
+import crypto from 'node:crypto';
 
-export default class BaseModel {
+export interface IBaseModel {
+    Id?: string;
+    CreatedTimestamp?: number;
+    LastModifiedTimestamp?: number;
+}
+
+export default class BaseModel implements IBaseModel {
     public Id?: string;
     public CreatedTimestamp?: number;
     public LastModifiedTimestamp?: number;
@@ -64,9 +71,10 @@ export default class BaseModel {
                 return;
             }
             if (typeof value === 'string') {
-                value = StringUtils.escapeSingleQuotes(value);
+                clone[field.name] = StringUtils.escapeSingleQuotes(value);
+            } else {
+                clone[field.name] = value;
             }
-            clone[field.name] = value;
         });
         return clone as BaseModel;
     }

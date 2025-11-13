@@ -2,7 +2,7 @@ import Constants from '@constants/shared';
 import User from '@database/models/user';
 import JWT from '@utils/security/jwt';
 
-export default class Auth {
+export default class AuthUtils {
     /**
      * @description Check the validity of a password in accordance with the application policy
      */
