@@ -9,6 +9,7 @@ const __filename: string = url.fileURLToPath(import.meta.url);
 const __dirname: string = path.dirname(__filename);
 
 const SYSTEM_FIELDS = [
+    'Id CHAR(255) NOT NULL',
     'CreatedTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()',
     'LastModifiedTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()'
 ];
@@ -20,13 +21,13 @@ export default async function main(): Promise<void> {
             MariaDBAdmin.ensureMysqlEnvironmentVars();
             const appSchemaSqlFile = path.resolve('sql/app-schema.sql');
             console.log('Executing SQL in', appSchemaSqlFile);
-            await MariaDBAdmin.execFromFile(appSchemaSqlFile, (sql: string) => {
+            const res = await MariaDBAdmin.execFromFile(appSchemaSqlFile, (sql: string) => {
                 const lines = sql.split('\n');
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
                     if (line.includes('CREATE TABLE')) {
                         const indent = (line.match(/^ +/)?.join('') ?? '') + '    ';
-                        SYSTEM_FIELDS.forEach((field) => lines.splice(i + 1, 0, indent + field + ','));
+                        SYSTEM_FIELDS.forEach((field) => lines.splice(++i, 0, indent + field + ','));
                     }
                 }
                 return lines.join('\n');
