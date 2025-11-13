@@ -15,7 +15,6 @@ BEGIN
     START TRANSACTION;
 
     CREATE TABLE User (
-        Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         Email NVARCHAR(255) NOT NULL,
         Phone NVARCHAR(32),
         FirstName NVARCHAR(255),
@@ -33,13 +32,14 @@ BEGIN
         PRIMARY KEY (Value)
     ) CHARACTER SET utf8mb4;
 
-    INSERT INTO UserCredentialType (Value) VALUES ('password'), ('jwt');
-
+    INSERT INTO UserCredentialType (Id, Value) VALUES
+        ('password', 'password'),
+        ('mfa_key', 'mfa_key'),
+        ('jwt', 'jwt');
 
     CREATE TABLE UserCredential (
-        Id INT UNSIGNED AUTO_INCREMENT,
         Value VARCHAR(4096) NOT NULL,
-        UserId INT UNSIGNED NOT NULL,
+        UserId CHAR(255) NOT NULL,
         Type NCHAR(32) NOT NULL,
         IsActive BOOLEAN DEFAULT TRUE,
         ExpirationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
@@ -55,26 +55,24 @@ BEGIN
     ) CHARACTER SET utf8mb4;
 
     CREATE TABLE Organization (
-        Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         Name NVARCHAR(255) NOT NULL,
         Email NVARCHAR(255) NOT NULL,
         PRIMARY KEY (Id)
     ) CHARACTER SET utf8mb4;
 
     CREATE TABLE OrganizationRole (
-        Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         Name NVARCHAR(255) NOT NULL,
         Label NVARCHAR(255) NOT NULL,
-        OrganizationId INT UNSIGNED NOT NULL,
+        OrganizationId CHAR(255) NOT NULL,
         PRIMARY KEY (Id)
     ) CHARACTER SET utf8mb4;
 
-    CREATE UNIQUE INDEX RoleNameWithinOrg ON Role(Name, OrganizationId);
+    CREATE UNIQUE INDEX RoleNameWithinOrg ON OrganizationRole(Name, OrganizationId);
 
     CREATE TABLE OrganizationUser (
-        OrganizationId INT UNSIGNED NOT NULL,
-        UserId INT UNSIGNED NOT NULL,
-        RoleId INT UNSIGNED NOT NULL,
+        OrganizationId CHAR(255) NOT NULL,
+        UserId CHAR(255) NOT NULL,
+        RoleId CHAR(255) NOT NULL,
         CONSTRAINT OrganizationUserOrganization
             FOREIGN KEY (OrganizationId) REFERENCES Organization(Id)
             ON DELETE CASCADE
@@ -91,8 +89,7 @@ BEGIN
     ) CHARACTER SET utf8mb4;
 
     CREATE TABLE Post (
-        Id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-        AuthorId INT UNSIGNED NOT NULL,
+        AuthorId CHAR(255) NOT NULL,
         Title NVARCHAR(255),
         Body NVARCHAR(8191),
         CONSTRAINT PostAuthor
