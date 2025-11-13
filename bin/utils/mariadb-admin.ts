@@ -1,15 +1,18 @@
 import asyncExec, { AsyncExecResponse } from './async-exec.ts';
-import sourceShellConfig from './source-shell-config.ts';
+import { sourceShellConfig, writeShellConfig } from './shell-config.ts';
 import CLIReader from './cli-reader.ts';
 import mysql from 'mysql2';
 import path from 'path';
 import fs from 'fs';
 
+const SECRETS_FILE = path.resolve('.secrets');
+
 /**
  * Use this utility to interact with mariadb as an admin
  */
 export default class MariaDBAdmin {
-    private static rootPassword: string;
+    private static rootPassword: string | null;
+    private static usingSavedPassword: boolean = false;
 
     public static getMySqlConfig(): mysql.ConnectionOptions {
         return {
@@ -59,12 +62,29 @@ export default class MariaDBAdmin {
         if (MariaDBAdmin.rootPassword?.length) {
             return MariaDBAdmin.rootPassword;
         }
+        if (!MariaDBAdmin.usingSavedPassword) {
+            const savedSecrets = sourceShellConfig(SECRETS_FILE);
+            if (!!savedSecrets.MARIADB_ROOT_PASSWORD?.length) {
+                MariaDBAdmin.rootPassword = savedSecrets.MARIADB_ROOT_PASSWORD;
+                MariaDBAdmin.usingSavedPassword = true;
+                return MariaDBAdmin.rootPassword;
+            }
+        }
         MariaDBAdmin.rootPassword = (await CLIReader.prompt({
             key: 'rootPassword',
             label: 'MariaDB Root Password',
             type: 'string',
             masked: true
         })) as string;
+
+        const savePassword = (await CLIReader.prompt({
+            key: 'savePassword',
+            label: 'Save Admin Password Locally?',
+            type: 'boolean'
+        })) as boolean;
+        if (savePassword) {
+            writeShellConfig(SECRETS_FILE, { MARIADB_ROOT_PASSWORD: MariaDBAdmin.rootPassword });
+        }
         return MariaDBAdmin.rootPassword;
     }
 
@@ -80,6 +100,18 @@ export default class MariaDBAdmin {
             );
             return result;
         } catch (error) {
+            if (error instanceof AsyncExecResponse && error.stderr?.includes('Access denied for user')) {
+                if (MariaDBAdmin.usingSavedPassword) {
+                    console.error(`The mariadb root password saved in ${SECRETS_FILE} is incorrect.`);
+                    MariaDBAdmin.usingSavedPassword = false;
+                } else {
+                    console.error('The provided password is incorrect.');
+                }
+                MariaDBAdmin.rootPassword = null;
+                return new Promise((resolve) => {
+                    setTimeout(() => resolve(this.exec(sqlStatement)), 1000);
+                });
+            }
             throw error;
         } finally {
             fs.rmSync(tempFileName);
