@@ -17,8 +17,12 @@ export default class Database extends AsyncModule {
     private static currentConnection: mysql.PoolConnection | null;
 
     static {
+        Database.init();
+    }
+
+    private static async init(): Promise<void> {
         try {
-            this.signalInit();
+            await this.signalInit();
             Database.pool = mysql.createPool({
                 host: process.env.MYSQL_HOST,
                 database: process.env.MYSQL_DATABASE,
@@ -84,6 +88,7 @@ export default class Database extends AsyncModule {
                         }
                     });
                 } catch (exception) {
+                    console.error(exception);
                     const error = new TransactionError();
                     if (exception instanceof Error) {
                         error.message = exception.message;
@@ -120,18 +125,27 @@ export default class Database extends AsyncModule {
         });
     }
 
-    public static async insert(record: BaseModel): Promise<mysql.OkPacket> {
+    /**
+     * @description Insert a record
+     * @param record Record to insert
+     * @returns New Record ID
+     */
+    public static async insert(record: BaseModel): Promise<string> {
         const connection: mysql.PoolConnection = await Database.getConnection();
-        return new Promise<mysql.OkPacket>(async (resolve, reject) => {
+        if (record.Id) {
+            throw new Error(`Record already has ID: ${record.Id}`);
+        }
+        return new Promise<string>(async (resolve, reject) => {
+            const recordId = record.generateId();
             const table = record.constructor.name;
             const recordClone = record.createQuerySafeClone();
             const query = mysql.format('INSERT INTO ?? SET ?;', [table, recordClone]);
             console.log(query);
-            connection.query(query, (insertError: mysql.QueryError, result: mysql.OkPacket) => {
+            connection.query(query, (insertError: mysql.QueryError, _: mysql.QueryResult) => {
                 if (insertError) {
                     reject(new DatabaseError(insertError));
                 } else {
-                    resolve(result);
+                    resolve(recordId);
                 }
             });
         });

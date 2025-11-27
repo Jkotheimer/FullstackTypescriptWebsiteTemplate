@@ -132,22 +132,34 @@ export default class MariaDBAdmin {
             throw new Error(`SQL source file not found: ${filename}`);
         }
         const sql = fs.readFileSync(filename).toString().replaceAll('"', '\\"');
-        return MariaDBAdmin.replaceTemplateLiterals(sql);
+        return MariaDBAdmin.replaceTemplateLiterals(sql, MariaDBAdmin.getMySqlConfig() as Record<string, string>);
     }
 
-    public static replaceTemplateLiterals(sql: string) {
-        const mysqlConfig = MariaDBAdmin.getMySqlConfig();
-        Object.keys(mysqlConfig).forEach((key) => {
-            const templateLiteral = `{tsk_${key}}`;
-            if (sql.includes(templateLiteral)) {
-                const value = mysqlConfig[key as keyof mysql.ConnectionOptions];
-                if (!value) {
-                    throw new Error(
-                        `Unable to execute SQL because template literal does not have a matching substitute for configuration key: ${key}.`
-                    );
+    public static replaceTemplateLiterals(sql: string, templateData: Record<string, string>): string {
+        const keys = Object.keys(templateData);
+        const formattedTemplateData = Object.keys(templateData).reduce(
+            (data: Record<string, string>, key: string) => {
+                if (/{!(\w+)}/.test(key)) {
+                    data[key] = templateData[key];
+                } else {
+                    data[`{!${key}}`] = templateData[key];
                 }
-                sql = sql.replaceAll(templateLiteral, value);
+                return data;
+            },
+            {} as Record<string, string>
+        );
+        Object.keys(formattedTemplateData).forEach((key) => {
+            if (!sql.includes(key)) {
+                console.log('sql does not contain key', key);
+                return;
             }
+            const value = formattedTemplateData[key];
+            if (!value) {
+                throw new Error(
+                    `Unable to execute SQL because template literal does not have a matching substitute for configuration key: ${key}.`
+                );
+            }
+            sql = sql.replaceAll(key, value);
         });
         return sql;
     }

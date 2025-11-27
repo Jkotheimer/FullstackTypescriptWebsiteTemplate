@@ -1,16 +1,44 @@
-import ModuleEventBus from '@utils/events/module-event-bus';
+import ModuleEventBus, { ModuleEvent } from '@utils/events/module-event-bus';
+
+const readyModules: Array<string> = [];
+ModuleEventBus.addEventListener(ModuleEventBus.SYSTEM_EVENTS.MODULE_READY, (event) => {
+    readyModules.push(event.detail.module.name);
+});
+
 export default class AsyncModule {
-    protected static priority: number = 0; // low numbers are higher priority
+    protected static dependencies: Array<string> = [];
+    private static readyDependencies: Set<string> = new Set<string>();
 
-    static signalInit() {
-        setTimeout(() => ModuleEventBus.signalInit(this), this.priority);
+    static async signalInit(): Promise<void> {
+        if (!this.dependencies.length) {
+            ModuleEventBus.signalInit(this);
+            return;
+        }
+        return new Promise<void>((resolve) => {
+            for (const readyModule of readyModules) {
+                if (this.dependencies.includes(readyModule)) {
+                    this.readyDependencies.add(readyModule);
+                }
+            }
+            const onModuleReady = async (event: ModuleEvent) => {
+                if (this.dependencies.includes(event.detail.module.name)) {
+                    this.readyDependencies.add(event.detail.module.name);
+                }
+                if (this.readyDependencies.size === this.dependencies.length) {
+                    ModuleEventBus.signalInit(this);
+                    ModuleEventBus.removeEventListener(ModuleEventBus.SYSTEM_EVENTS.MODULE_READY, onModuleReady);
+                    resolve();
+                }
+            };
+            ModuleEventBus.addEventListener(ModuleEventBus.SYSTEM_EVENTS.MODULE_READY, onModuleReady);
+        });
     }
 
-    static signalReady() {
-        setTimeout(() => ModuleEventBus.signalReady(this), this.priority);
+    static signalReady(): void {
+        ModuleEventBus.signalReady(this);
     }
 
-    static signalError(error: Error) {
-        setTimeout(() => ModuleEventBus.signalError(this, error), this.priority);
+    static signalError(error: Error): void {
+        ModuleEventBus.signalError(this, error);
     }
 }

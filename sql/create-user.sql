@@ -13,10 +13,11 @@ BEGIN
 
     START TRANSACTION;
 
-    DROP USER IF EXISTS '{tsk_user}'@'{tsk_host}';
-    CREATE USER IF NOT EXISTS '{tsk_user}'@'{tsk_host}' IDENTIFIED BY '{tsk_password}';
-    GRANT SELECT, INSERT, UPDATE, DELETE ON {tsk_database}.* TO '{tsk_user}'@'{tsk_host}';
+    DROP USER IF EXISTS '{!user}'@'{!host}';
+    CREATE USER IF NOT EXISTS '{!user}'@'{!host}' IDENTIFIED BY '{!password}';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON {!database}.* TO '{!user}'@'{!host}';
     FLUSH PRIVILEGES;
+
     COMMIT;
 END //
 

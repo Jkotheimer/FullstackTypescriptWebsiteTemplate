@@ -1,7 +1,7 @@
 import Constants from '@constants/shared';
 import StringUtils from '@utils/string';
 import GlobalDescribe, { TableDescribe } from '@database/describe';
-import crypto from 'node:crypto';
+import { randomUUID } from 'crypto';
 
 export interface IBaseModel {
     Id?: string;
@@ -20,7 +20,7 @@ export default class BaseModel implements IBaseModel {
      * @description Static factory method to generate a single base model instance
      * @param record Record input to generate model from
      */
-    protected static from(record: Record<string, any>): BaseModel {
+    public static from(record: Record<string, any>): BaseModel {
         const tableDescribe = this.getDescribe();
         const model = new this();
         Object.keys(record).forEach((key) => {
@@ -37,6 +37,12 @@ export default class BaseModel implements IBaseModel {
             Object.assign(model, { [convertedKey]: value });
         });
         return model;
+    }
+
+    public generateId(): string {
+        const prefix = this.constructor.name.toLowerCase() + '_';
+        this.Id = prefix + randomUUID().replace(/-/g, '');
+        return this.Id;
     }
 
     /**

@@ -1,9 +1,9 @@
 /**
  * User data model representation
  */
-import BaseModel from '@database/models/base';
+import BaseModel, { IBaseModel } from '@database/models/base';
 
-export interface IUser {
+export interface IUser extends IBaseModel {
     FirstName?: string;
     LastName?: string;
     Email?: string;

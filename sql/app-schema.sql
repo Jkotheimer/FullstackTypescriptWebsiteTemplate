@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS {tsk_database};
-USE {tsk_database};
+CREATE DATABASE IF NOT EXISTS {!database};
+USE {!database};
 
 CREATE TABLE IF NOT EXISTS User (
     Email NVARCHAR(255) NOT NULL,

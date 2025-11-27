@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { AsyncExecResponse } from './utils/async-exec.ts';
+import Constants from '../src/constants/server.ts';
 import MariaDBAdmin from './utils/mariadb-admin.ts';
 import ensureNodeEnv from './utils/node-env.ts';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import url from 'url';
 
@@ -9,7 +11,7 @@ const __filename: string = url.fileURLToPath(import.meta.url);
 const __dirname: string = path.dirname(__filename);
 
 const SYSTEM_FIELDS = [
-    'Id CHAR(255) NOT NULL',
+    'Id CHAR(63) NOT NULL',
     'CreatedTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()',
     'LastModifiedTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()'
 ];
@@ -21,7 +23,7 @@ export default async function main(): Promise<void> {
             MariaDBAdmin.ensureMysqlEnvironmentVars();
             const appSchemaSqlFile = path.resolve('sql/app-schema.sql');
             console.log('Executing SQL in', appSchemaSqlFile);
-            const res = await MariaDBAdmin.execFromFile(appSchemaSqlFile, (sql: string) => {
+            await MariaDBAdmin.execFromFile(appSchemaSqlFile, (sql: string) => {
                 const lines = sql.split('\n');
                 for (let i = 0; i < lines.length; i++) {
                     const line = lines[i];
@@ -38,6 +40,19 @@ export default async function main(): Promise<void> {
             await MariaDBAdmin.execFromFile(createUserSqlFile);
             const mariadbUser = MariaDBAdmin.getMySqlConfig().user;
             console.log('MariaDB application user successfully created:', mariadbUser);
+
+            const initializeDataSqlFile = path.resolve('sql/initialize-data.sql');
+            console.log('Executing SQL in', initializeDataSqlFile);
+            await MariaDBAdmin.execFromFile(initializeDataSqlFile, (sql: string) => {
+                const uctsInsert = Object.values(Constants.CREDENTIAL_TYPE)
+                    .map((uct) => `('uct_${randomUUID()}','${uct}')`)
+                    .join(',');
+                console.log('uctsInsert', uctsInsert);
+                sql = MariaDBAdmin.replaceTemplateLiterals(sql, {
+                    user_credential_types: uctsInsert
+                });
+                return sql;
+            });
 
             // Test connection
             console.log('Testing connection as', mariadbUser);

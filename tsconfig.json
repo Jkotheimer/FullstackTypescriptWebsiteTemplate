@@ -2,7 +2,7 @@
     "@schema": "https://json.schemastore.org/tsconfig",
     "_version": "0.1.0",
     "include": ["src/**/*"],
-    "exclude": ["node_modules", "dist"],
+    "exclude": ["sql/node_modules", "dist"],
     "compilerOptions": {
         "jsx": "react",
         "target": "ES2020",
@@ -10,7 +10,7 @@
         "rootDir": "src",
         "module": "ESNext",
         "moduleResolution": "bundler",
-        "typeRoots": ["node_modules/@types", "src/types"],
+        "typeRoots": ["sql/node_modules/@types", "src/types"],
         "lib": ["ES2020", "DOM"],
         "paths": {
             "@client/*": ["client/ts/*"],

@@ -4,7 +4,7 @@ export type UserCredentialType = 'password' | 'mfa_key' | 'jwt';
 
 export interface IUserCredential {
     Value?: string;
-    UserId?: number;
+    UserId?: string;
     Type?: UserCredentialType;
     IsActive?: boolean;
     ExpirationDate?: Date;
@@ -12,7 +12,7 @@ export interface IUserCredential {
 
 export default class UserCredential extends BaseModel implements IUserCredential {
     public Value?: string;
-    public UserId?: number;
+    public UserId?: string;
     public Type?: UserCredentialType;
     public IsActive?: boolean;
     public ExpirationDate?: Date;

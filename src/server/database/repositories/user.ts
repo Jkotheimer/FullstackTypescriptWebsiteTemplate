@@ -57,6 +57,8 @@ export default class UserRepository {
 
     /**
      * @description Create a new user record
+     * @param user User object to create
+     * @returns The created user object with a unique Id
      */
     public static async createUser(user: User): Promise<string> {
         console.log('User:', user);
@@ -76,18 +78,20 @@ export default class UserRepository {
         try {
             // Insert the user record and return the record with it's new id
             return await Database.wrap(async () => {
-                const result = await Database.insert(user);
-                user.Id = result.insertId;
+                console.log('User before', user);
+                const userId = await Database.insert(user);
+                console.log('User after', user);
                 const hashedPassword = await Crypto.hashPassword(password);
                 const userCredential = UserCredential.from({
-                    UserId: user.Id,
+                    UserId: userId,
                     Value: hashedPassword,
                     Type: 'password',
                     ExpirationDate: new Date(Date.now() + ServerConstants.PASSWORD_TTL),
                     IsActive: true
                 });
-                await Database.insert(userCredential);
-                return result.insertId;
+                const r = await Database.insert(userCredential);
+                console.log('cred res:', r);
+                return user;
             });
         } catch (error) {
             if (error instanceof DatabaseError) {

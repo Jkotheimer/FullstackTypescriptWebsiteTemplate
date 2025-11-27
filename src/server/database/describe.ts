@@ -3,7 +3,7 @@ import AsyncModule from '@utils/async-module';
 import Database from '@database/database';
 
 export default class GlobalDescribe extends AsyncModule {
-    protected static priority: number = 1;
+    protected static dependencies: Array<string> = ['Database'];
     private static cache: Record<string, TableDescribe> = {};
 
     /**
@@ -11,32 +11,30 @@ export default class GlobalDescribe extends AsyncModule {
      * We use the event bus to tell the main module when we are ready for service.
      */
     static {
-        this.signalInit();
-        ModuleEventBus.addEventListener(ModuleEventBus.SYSTEM_EVENTS.MODULE_READY, async (event) => {
-            console.log(event.detail.module.name, event.type);
-            if (event.detail.module !== Database) {
-                return;
-            }
-            try {
-                const result = await Database.query('SHOW TABLES;');
-                const promises: Array<Promise<void>> = [];
-                result.forEach((tableObject) => {
-                    const tableName = tableObject[`Tables_in_${process.env.MYSQL_DATABASE}`];
-                    promises.push(
-                        Database.query('DESCRIBE ??;', [tableName]).then((fieldDescribes) => {
-                            GlobalDescribe.cache[tableName] = new TableDescribe(
-                                tableName,
-                                fieldDescribes.map((fd) => new FieldDescribe(fd))
-                            );
-                        })
-                    );
-                });
-                await Promise.all(promises);
-                this.signalReady();
-            } catch (error) {
-                this.signalError(error as Error);
-            }
-        });
+        GlobalDescribe.init();
+    }
+
+    private static async init(): Promise<void> {
+        try {
+            await this.signalInit();
+            const result = await Database.query('SHOW TABLES;');
+            const promises: Array<Promise<void>> = [];
+            result.forEach((tableObject) => {
+                const tableName = tableObject[`Tables_in_${process.env.MYSQL_DATABASE}`];
+                promises.push(
+                    Database.query('DESCRIBE ??;', [tableName]).then((fieldDescribes) => {
+                        GlobalDescribe.cache[tableName] = new TableDescribe(
+                            tableName,
+                            fieldDescribes.map((fd) => new FieldDescribe(fd))
+                        );
+                    })
+                );
+            });
+            await Promise.all(promises);
+            this.signalReady();
+        } catch (error) {
+            this.signalError(error as Error);
+        }
     }
 
     /**
