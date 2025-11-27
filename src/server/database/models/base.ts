@@ -16,6 +16,8 @@ export default class BaseModel implements IBaseModel {
 
     public static readonly READONLY_FIELDS = new Set<string>(['Id', 'CreatedTimestamp', 'LastModifiedTimestamp']);
 
+    protected readonly ID_PREFIX: string = '';
+
     /**
      * @description Static factory method to generate a single base model instance
      * @param record Record input to generate model from
@@ -40,7 +42,7 @@ export default class BaseModel implements IBaseModel {
     }
 
     public generateId(): string {
-        const prefix = this.constructor.name.toLowerCase() + '_';
+        const prefix = (this.ID_PREFIX || this.constructor.name.toLowerCase()) + '_';
         this.Id = prefix + randomUUID().replace(/-/g, '');
         return this.Id;
     }

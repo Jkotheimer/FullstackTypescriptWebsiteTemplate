@@ -36,6 +36,8 @@ export default class User extends BaseModel implements IUser {
 
     public static readonly HIDDEN_FIELDS: Set<string> = new Set<string>(['Password']);
 
+    protected readonly ID_PREFIX: string = 'usr';
+
     /**
      * @description Parse a data object into a user instance
      * @param data The raw untyped user data. Either from a request payload or database query
@@ -43,7 +45,7 @@ export default class User extends BaseModel implements IUser {
     public static from(data: IUser): User {
         const password = data.Password;
         delete data.Password;
-        const user: User = super.from(data);
+        const user: User = super.from(data) as User;
         user.Password = password;
         return user;
     }

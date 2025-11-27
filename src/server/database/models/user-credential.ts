@@ -17,7 +17,9 @@ export default class UserCredential extends BaseModel implements IUserCredential
     public IsActive?: boolean;
     public ExpirationDate?: Date;
 
+    protected readonly ID_PREFIX = 'usrcred';
+
     public static from(record: IUserCredential): UserCredential {
-        return super.from(record);
+        return super.from(record) as UserCredential;
     }
 }
